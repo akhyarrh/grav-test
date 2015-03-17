@@ -16,11 +16,10 @@ content:
     pagination: true
 
 feed:
-    description: Sample Blog Description
+    description: Simple blog, source on GitHub, deployed to Heroku
     limit: 10
 
 pagination: true
 ---
 
-# My Gravtastic Blog
-## A tale of **awesomazing** adventures
+# Mowl

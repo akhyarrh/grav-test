@@ -1,6 +1,6 @@
 ---
 title: Home
-blog_url: blog
+blog_url: post
 body_classes: header-image fullwidth
 
 sitemap:

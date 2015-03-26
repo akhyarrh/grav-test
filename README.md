@@ -1,2 +1,1 @@
-# grav-test
-Testing deploy grav to heroku
+This is a Grav blog, deployed by Heroku

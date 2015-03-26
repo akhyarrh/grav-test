@@ -1,0 +1,4 @@
+show_count: false
+limit: 10
+filters:
+    category: blog

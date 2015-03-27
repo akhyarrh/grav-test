@@ -5,5 +5,5 @@ author:
 blog:
   route: ''
 metadata:
-    description: 'Simple blog, source on GitHub, deployed to Heroku'
+    description: 'Simple blog, source on GitHub.'
 taxonomies: [category,tag,month]

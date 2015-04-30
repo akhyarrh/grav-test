@@ -1,5 +1,7 @@
+absolute_urls: false
+
 home:
-  alias: '/post'
+  alias: '/home'
 
 pages:
   theme: antimatter
@@ -27,6 +29,10 @@ assets:
   css_rewrite: true
   js_pipeline: false
   js_minify: true
+
+errors:
+  display: true
+  log: true
 
 debugger:
   enabled: false

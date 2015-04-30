@@ -1,9 +1,7 @@
-title: Mowl
+title: Grav
 author:
-  name: Akhyar
-  email: 'akhyarrh@gmail.com'
-blog:
-  route: ''
+  name: Joe Bloggs
+  email: 'joe@test.com'
 metadata:
-    description: 'Simple blog, source on GitHub.'
-taxonomies: [category,tag,month]
+    description: 'Grav is an easy to use, yet powerful, open source flat-file CMS'
+

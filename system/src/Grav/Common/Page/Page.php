@@ -47,6 +47,7 @@ class Page
 
     protected $parent;
     protected $template;
+    protected $expires;
     protected $visible;
     protected $published;
     protected $publish_date;
@@ -273,6 +274,10 @@ class Page
             if (isset($this->header->unpublish_date)) {
                 $this->unpublish_date = strtotime($this->header->unpublish_date);
             }
+            if (isset($this->header->expires)) {
+                $this->expires = intval($this->header->expires);
+            }
+
         }
 
         return $this->header;
@@ -442,9 +447,9 @@ class Page
 
         // Initialize the preferred variant of Parsedown
         if ($defaults['extra']) {
-            $parsedown = new ParsedownExtra($this);
+            $parsedown = new ParsedownExtra($this, $defaults);
         } else {
-            $parsedown = new Parsedown($this);
+            $parsedown = new Parsedown($this, $defaults);
         }
 
         $this->content = $parsedown->text($this->content);
@@ -782,6 +787,20 @@ class Page
     }
 
     /**
+     * Gets and sets the expires field. If not set will return the default
+     *
+     * @param  string $var The name of this page.
+     * @return string      The name of this page.
+     */
+    public function expires($var = null)
+    {
+        if ($var !== null) {
+            $this->expires = $var;
+        }
+        return empty($this->expires) ? self::getGrav()['config']->get('system.pages.expires') : $this->expires;
+    }
+
+    /**
      * Gets and sets the title for this Page.  If no title is set, it will use the slug() to get a name
      *
      * @param  string $var the title of the Page
@@ -960,7 +979,6 @@ class Page
 
                 // Build an array of meta objects..
                 foreach ((array)$page_header->metadata as $key => $value) {
-
                     // If this is a property type metadata: "og", "twitter", "facebook" etc
                     if (is_array($value)) {
                         foreach ($value as $property => $prop_value) {

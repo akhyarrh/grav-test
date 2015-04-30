@@ -11,6 +11,7 @@ class Uri
 {
     public $url;
 
+    protected $basename;
     protected $base;
     protected $root;
     protected $bits;
@@ -33,8 +34,7 @@ class Uri
         $port = isset($_SERVER['SERVER_PORT']) ? $_SERVER['SERVER_PORT'] : 80;
         $uri  = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';
 
-        $root_path = rtrim(substr($_SERVER['PHP_SELF'], 0, strpos($_SERVER['PHP_SELF'], 'index.php')), '/');
-
+        $root_path = str_replace(' ', '%20', rtrim(substr($_SERVER['PHP_SELF'], 0, strpos($_SERVER['PHP_SELF'], 'index.php')), '/'));
 
         if (isset($_SERVER['HTTPS'])) {
             $base = (@$_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://';
@@ -64,6 +64,7 @@ class Uri
         $this->base = $base;
         $this->root = $base . $root_path;
         $this->url = $base . $uri;
+
     }
 
     /**
@@ -84,7 +85,11 @@ class Uri
 
         // remove the extension if there is one set
         $parts = pathinfo($uri);
-        if (preg_match("/\.(txt|xml|html|json|rss|atom)$/", $parts['basename'])) {
+
+        // set the original basename
+        $this->basename = $parts['basename'];
+
+        if (preg_match("/\.(".$config->get('system.pages.types').")$/", $parts['basename'])) {
             $uri = rtrim($parts['dirname'], '/').'/'.$parts['filename'];
             $this->extension = $parts['extension'];
         }
@@ -100,8 +105,10 @@ class Uri
             parse_str($this->bits['query'], $this->query);
         }
 
+        $path = $this->bits['path'];
+
         $this->paths = array();
-        $this->path = $this->bits['path'];
+        $this->path = $path;
         $this->content_path = trim(str_replace($this->base, '', $this->path), '/');
         if ($this->content_path != '') {
             $this->paths = explode('/', $this->content_path);
@@ -131,7 +138,7 @@ class Uri
                     $path[] = $bit;
                 }
             }
-            $uri = implode('/', $path);
+            $uri = '/' . ltrim(implode('/', $path), '/');
         }
         return $uri;
     }
@@ -244,7 +251,11 @@ class Uri
      */
     public function path()
     {
-        return $this->path;
+        $path = $this->path;
+        if ($path === '') {
+            $path = '/';
+        }
+        return $path;
     }
 
     /**
@@ -280,6 +291,17 @@ class Uri
     public function environment()
     {
         return $this->host();
+    }
+
+
+    /**
+     * Return the basename of the URI
+     *
+     * @return String The basename of the URI
+     */
+    public function basename()
+    {
+        return $this->basename;
     }
 
     /**
@@ -377,6 +399,20 @@ class Uri
             $ipaddress = 'UNKNOWN';
         return $ipaddress;
 
+    }
+    /**
+     * Is this an external URL? if it starts with `http` then yes, else false
+     *
+     * @param  string  $url the URL in question
+     * @return boolean      is eternal state
+     */
+    public function isExternal($url)
+    {
+        if (Utils::startsWith($url, 'http')) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**

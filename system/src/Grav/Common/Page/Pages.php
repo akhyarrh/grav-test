@@ -332,6 +332,28 @@ class Pages
     }
 
     /**
+     * Get all pages
+     *
+     * @param \Grav\Common\Page\Page $current
+     * @return \Grav\Common\Page\Collection
+     */
+    public function all(Page $current = null)
+    {
+        $all = new Collection();
+        $current = $current ?: $this->root();
+
+        if ($current->routable()) {
+            $all[$current->path()] = [ 'slug' => $current->slug() ];
+        }
+
+        foreach ($current->children() as $next) {
+            $all->append($this->all($next));
+        }
+
+        return $all;
+    }
+
+    /**
      * Get list of route/title of all pages.
      *
      * @param Page $current
@@ -523,7 +545,6 @@ class Pages
 
         /** @var \DirectoryIterator $file */
         foreach ($iterator as $file) {
-
             if ($file->isDot()) {
                 continue;
             }
@@ -531,14 +552,12 @@ class Pages
             $name = $file->getFilename();
 
             if ($file->isFile()) {
-
                 // Update the last modified if it's newer than already found
                 if ($file->getBasename() !== '.DS_Store' && ($modified = $file->getMTime()) > $last_modified) {
                     $last_modified = $modified;
                 }
 
                 if (Utils::endsWith($name, CONTENT_EXT)) {
-
                     $page->init($file);
                     $content_exists = true;
 
@@ -547,7 +566,6 @@ class Pages
                     }
                 }
             } elseif ($file->isDir()) {
-
                 if (!$page->path()) {
                     $page->path($file->getPath());
                 }
@@ -593,7 +611,6 @@ class Pages
         // Build routes and taxonomy map.
         /** @var $page Page */
         foreach ($this->instances as $page) {
-
             $parent = $page->parent();
 
             if ($parent) {
@@ -643,7 +660,6 @@ class Pages
         }
 
         foreach ($pages as $key => $info) {
-
             $child = isset($this->instances[$key]) ? $this->instances[$key] : null;
             if (!$child) {
                 throw new \RuntimeException("Page does not exist: {$key}");

@@ -4,8 +4,9 @@ namespace Grav\Common\Markdown;
 use Grav\Common\Config\Config;
 use Grav\Common\Debugger;
 use Grav\Common\GravTrait;
-use Grav\Common\Page\Medium;
+use Grav\Common\Page\Medium\Medium;
 use Grav\Common\Uri;
+use Grav\Common\Utils;
 
 /**
  * A trait to add some custom processing to the identifyLink() method in Parsedown and ParsedownExtra
@@ -19,14 +20,15 @@ trait ParsedownGravTrait
     protected $pages_dir;
     protected $special_chars;
 
-    protected $twig_link_regex = '/\!*\[(?:.*)\]\(([{{|{%|{#].*[#}|%}|}}])\)/';
+    protected $twig_link_regex = '/\!*\[(?:.*)\]\((\{([\{%#])\s*(.*?)\s*(?:\2|\})\})\)/';
 
     /**
      * Initialiazation function to setup key variables needed by the MarkdownGravLinkTrait
      *
      * @param $page
+     * @param $defaults
      */
-    protected function init($page)
+    protected function init($page, $defaults)
     {
         $this->page = $page;
         $this->pages = self::getGrav()['pages'];
@@ -35,12 +37,25 @@ trait ParsedownGravTrait
         $this->pages_dir = self::getGrav()['locator']->findResource('page://');
         $this->special_chars = array('>' => 'gt', '<' => 'lt', '"' => 'quot');
 
-        $defaults = self::getGrav()['config']->get('system.pages.markdown');
+        if ($defaults == null) {
+            $defaults = self::getGrav()['config']->get('system.pages.markdown');
+        }
 
         $this->setBreaksEnabled($defaults['auto_line_breaks']);
         $this->setUrlsLinked($defaults['auto_url_links']);
         $this->setMarkupEscaped($defaults['escape_markup']);
         $this->setSpecialChars($defaults['special_chars']);
+    }
+
+    /**
+     * Make the element function publicly accessible, Medium uses this to render from Twig
+     *
+     * @param  array  $Element
+     * @return string markup
+     */
+    public function elementToHtml(array $Element)
+    {
+        return $this->element($Element);
     }
 
     /**
@@ -105,17 +120,16 @@ trait ParsedownGravTrait
 
         // if this is an image
         if (isset($excerpt['element']['attributes']['src'])) {
-
             $alt = $excerpt['element']['attributes']['alt'] ?: '';
             $title = $excerpt['element']['attributes']['title'] ?: '';
+            $class = isset($excerpt['element']['attributes']['class']) ? $excerpt['element']['attributes']['class'] : '';
 
             //get the url and parse it
             $url = parse_url(htmlspecialchars_decode($excerpt['element']['attributes']['src']));
 
-            $path_parts = pathinfo($url['path']);
-
             // if there is no host set but there is a path, the file is local
             if (!isset($url['host']) && isset($url['path'])) {
+                $path_parts = pathinfo($url['path']);
 
                 // get the local path to page media if possible
                 if ($path_parts['dirname'] == $this->page->url()) {
@@ -124,7 +138,6 @@ trait ParsedownGravTrait
                     $media = $this->page->media();
 
                 } else {
-
                     // see if this is an external page to this one
                     $page_route = str_replace($this->base_url, '', $path_parts['dirname']);
 
@@ -136,69 +149,32 @@ trait ParsedownGravTrait
                 }
 
                 // if there is a media file that matches the path referenced..
-                if ($media && isset($media->images()[$url['path']])) {
+                if ($media && isset($media->all()[$url['path']])) {
                     // get the medium object
-                    $medium = $media->images()[$url['path']];
+                    $medium = $media->all()[$url['path']];
 
                     // if there is a query, then parse it and build action calls
                     if (isset($url['query'])) {
-                        parse_str($url['query'], $actions);
+                        $actions = array_reduce(explode('&', $url['query']), function ($carry, $item) {
+                            $parts = explode('=', $item, 2);
+                            $value = isset($parts[1]) ? $parts[1] : null;
+                            $carry[] = [ 'method' => $parts[0], 'params' => $value ];
+
+                            return $carry;
+                        }, []);
                     }
 
                     // loop through actions for the image and call them
-                    foreach ($actions as $action => $params) {
-                        // as long as it's a valid action
-                        if (in_array($action, Medium::$valid_actions)) {
-                            call_user_func_array(array(&$medium, $action), explode(',', $params));
-                        }
+                    foreach ($actions as $action) {
+                        $medium = call_user_func_array(array($medium, $action['method']), explode(',', $action['params']));
                     }
 
-                    $data = $medium->htmlRaw();
-
-                    // set the src element with the new generated url
-                    if (!isset($actions['lightbox'])) {
-                        $excerpt['element']['attributes']['src'] = $data['img_src'];
-
-                        if ($data['img_srcset']) {
-                            $excerpt['element']['attributes']['srcset'] = $data['img_srcset'];;
-                            $excerpt['element']['attributes']['sizes'] = '100vw';
-                        }
-
-                    } else {
-                        // Create the custom lightbox element
-
-                        $attributes = $data['a_attributes'];
-                        $attributes['href'] = $data['a_href'];
-
-                        $img_attributes = [
-                            'src' => $data['img_src'],
-                            'alt' => $alt,
-                            'title' => $title
-                        ];
-
-                        if ($data['img_srcset']) {
-                            $img_attributes['srcset'] = $data['img_srcset'];
-                            $img_attributes['sizes'] = '100vw';
-                        }
-
-                        $element = array(
-                            'name' => 'a',
-                            'attributes' => $attributes,
-                            'handler' => 'element',
-                            'text' => array(
-                                'name' => 'img',
-                                'attributes' => $img_attributes
-                            )
-                        );
-
-                        // Set any custom classes on the lightbox element
-                        if (isset($excerpt['element']['attributes']['class'])) {
-                            $element['attributes']['class'] = $excerpt['element']['attributes']['class'];
-                        }
-
-                        // Set the lightbox element on the Excerpt
-                        $excerpt['element'] = $element;
+                    if (isset($url['fragment'])) {
+                        $medium->urlHash($url['fragment']);
                     }
+
+                    $excerpt['element'] = $medium->parseDownElement($title, $alt, $class);
+
                 } else {
                     // not a current page media file, see if it needs converting to relative
                     $excerpt['element']['attributes']['src'] = Uri::buildUrl($url);
@@ -227,7 +203,7 @@ trait ParsedownGravTrait
             $url = parse_url(htmlspecialchars_decode($excerpt['element']['attributes']['href']));
 
             // if there is no scheme, the file is local
-            if (!isset($url['scheme'])) {
+            if (!isset($url['scheme']) && (count($url) > 0)) {
                 // convert the URl is required
                 $excerpt['element']['attributes']['href'] = $this->convertUrl(Uri::buildUrl($url));
             }
@@ -244,37 +220,58 @@ trait ParsedownGravTrait
     protected function convertUrl($markdown_url)
     {
         // if absolute and starts with a base_url move on
-        if ($this->base_url != '' && strpos($markdown_url, $this->base_url) === 0) {
+        if ($this->base_url != '' && Utils::startsWith($markdown_url, $this->base_url)) {
             return $markdown_url;
-        // if its absolute and starts with /
-        } elseif (strpos($markdown_url, '/') === 0) {
-            return $this->base_url . $markdown_url;
+            // if contains only a fragment
+        } elseif (Utils::startsWith($markdown_url, '#')) {
+            return $markdown_url;
         } else {
-            $relative_path = $this->base_url . $this->page->route();
-            $real_path = $this->page->path() . '/' . parse_url($markdown_url, PHP_URL_PATH);
-
-            // strip numeric order from markdown path
-            if (($real_path)) {
-                $markdown_url = preg_replace('/^([\d]+\.)/', '', preg_replace('/\/([\d]+\.)/', '/', trim(preg_replace('/[^\/]+(\.md$)/', '', $markdown_url), '/')));
+            $target = null;
+            // see if page is relative to this or absolute
+            if (Utils::startsWith($markdown_url, '/')) {
+                $normalized_path = Utils::normalizePath($this->pages_dir . $markdown_url);
+                $normalized_url = Utils::normalizePath($this->base_url . $markdown_url);
+            } else {
+                // contains path, so need to normalize it
+                if (Utils::contains($markdown_url, '/')) {
+                    $normalized_path = Utils::normalizePath($this->page->path() . '/' . $markdown_url);
+                } else {
+                    $normalized_path = false;
+                }
+                $normalized_url = $this->base_url . Utils::normalizePath($this->page->route() . '/' . $markdown_url);
             }
 
-            // else its a relative path already
-            $newpath = array();
-            $paths = explode('/', $markdown_url);
+            // if this file exits, get the page and work with that
+            if ($normalized_path) {
+                $url_bits = parse_url($normalized_path);
+                $full_path = $url_bits['path'];
 
-            // remove the updirectory references (..)
-            foreach ($paths as $path) {
-                if ($path == '..') {
-                    $relative_path = dirname($relative_path);
-                } else {
-                    $newpath[] = $path;
+                if ($full_path && file_exists($full_path)) {
+                    $path_info = pathinfo($full_path);
+                    $page_path = $path_info['dirname'];
+                    $filename = '';
+
+                    // save the filename if a file is part of the path
+                    $filename_regex = "/([\w\d-_]+\.([a-zA-Z]{2,4}))$/";
+                    if (preg_match($filename_regex, $full_path, $matches)) {
+                        if ($matches[2] != 'md') {
+                            $filename = '/' . $matches[1];
+                        }
+                    } else {
+                        $page_path = $full_path;
+                    }
+
+                    // get page instances and try to find one that fits
+                    $instances = $this->pages->instances();
+                    if (isset($instances[$page_path])) {
+                        $target = $instances[$page_path];
+                        $url_bits['path'] = $this->base_url . $target->route() . $filename;
+                        return Uri::buildUrl($url_bits);
+                    }
                 }
             }
 
-            // build the new url
-            $new_url = rtrim($relative_path, '/') . '/' . implode('/', $newpath);
+            return $normalized_url;
         }
-
-        return $new_url;
     }
 }

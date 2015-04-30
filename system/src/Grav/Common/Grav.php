@@ -2,6 +2,7 @@
 namespace Grav\Common;
 
 use Grav\Common\Filesystem\Folder;
+use Grav\Common\Page\Medium\ImageMedium;
 use Grav\Common\Page\Pages;
 use Grav\Common\Service\ConfigServiceProvider;
 use Grav\Common\Service\ErrorServiceProvider;
@@ -10,7 +11,6 @@ use Grav\Common\Service\StreamsServiceProvider;
 use RocketTheme\Toolbox\DI\Container;
 use RocketTheme\Toolbox\Event\Event;
 use RocketTheme\Toolbox\Event\EventDispatcher;
-use Grav\Common\Page\Medium;
 
 /**
  * Grav
@@ -99,32 +99,34 @@ class Grav extends Container
             /** @var Pages $pages */
             $pages = $c['pages'];
 
-            // If base URI is set, we want to remove it from the URL.
-            $path = '/' . ltrim(Folder::getRelativePath($c['uri']->route(), $pages->base()), '/');
+            /** @var Uri $uri */
+            $uri = $c['uri'];
+
+            $path = $uri->path();
 
             $page = $pages->dispatch($path);
 
             if (!$page || !$page->routable()) {
-
-                // special  case where a media file is requested
                 $path_parts = pathinfo($path);
-
                 $page = $c['pages']->dispatch($path_parts['dirname'], true);
                 if ($page) {
                     $media = $page->media()->all();
-                    $media_file = urldecode($path_parts['basename']);
+
+                    $parsed_url = parse_url(urldecode($uri->basename()));
+
+                    $media_file = $parsed_url['path'];
+
+                    // if this is a media object, try actions first
                     if (isset($media[$media_file])) {
                         $medium = $media[$media_file];
-
-                        // loop through actions for the image and call them
-                        foreach ($c['uri']->query(null, true) as $action => $params) {
-                            if (in_array($action, Medium::$valid_actions)) {
+                        foreach ($uri->query(null, true) as $action => $params) {
+                            if (in_array($action, ImageMedium::$magic_actions)) {
                                 call_user_func_array(array(&$medium, $action), explode(',', $params));
                             }
                         }
-                        header('Content-type: '. $medium->get('mime'));
-                        echo file_get_contents($medium->path());
-                        die;
+                        Utils::download($medium->path(), false);
+                    } else {
+                        Utils::download($page->path() . DIRECTORY_SEPARATOR . $uri->basename(), true);
                     }
                 }
 
@@ -255,7 +257,13 @@ class Grav extends Container
             $this['session']->close();
         }
 
-        header("Location: " . rtrim($uri->rootUrl(), '/') .'/'. trim($route, '/'), true, $code);
+        if ($this['uri']->isExternal($route)) {
+            $url = $route;
+        } else {
+            $url = rtrim($uri->rootUrl(), '/') .'/'. trim($route, '/');
+        }
+
+        header("Location: {$url}", true, $code);
         exit();
     }
 
@@ -288,7 +296,27 @@ class Grav extends Container
     public function header()
     {
         $extension = $this['uri']->extension();
+
+        /** @var Page $page */
+        $page = $this['page'];
+
         header('Content-type: ' . $this->mime($extension));
+
+        // Calculate Expires Headers if set to > 0
+        $expires = $page->expires();
+
+        if ($expires > 0) {
+            $expires_date = gmdate('D, d M Y H:i:s', time() + $expires) . ' GMT';
+            header('Cache-Control: max-age=' . $expires_date);
+            header('Expires: '. $expires_date);
+        }
+
+        // Set the last modified time
+        $last_modified_date = gmdate('D, d M Y H:i:s', $page->modified()) . ' GMT';
+        header('Last-Modified: ' . $last_modified_date);
+
+        // Calculate a Hash based on the raw file
+        header('ETag: ' . md5($page->raw().$page->modified()));
 
         // Set debugger data in headers
         if (!($extension === null || $extension == 'html')) {
@@ -339,7 +367,7 @@ class Grav extends Container
             header("Connection: close\r\n");
 
             ob_end_flush(); // regular buffer
-            ob_flush();
+            @ob_flush();
             flush();
 
             if (function_exists('fastcgi_finish_request')) {

@@ -1,10 +1,6 @@
-<div class="sidebar-content">
-    <h4>About</h4>
-    <p>Mowl is a fun project and simple blog, or maybe both of them actually, source hosted on GitHub.</p>
-</div>
 {% if config.plugins.simplesearch.enabled %}
 <div class="sidebar-content">
-    <h4>Search</h4>
+    <h4>SimpleSearch</h4>
     {% include 'partials/simplesearch_searchbox.html.twig' %}
 </div>
 {% endif %}
@@ -18,6 +14,10 @@
 	<a class="button" href="{{ base_url_relative }}/random"><i class="fa fa-retweet"></i> I'm Feeling Lucky!</a>
 </div>
 {% endif %}
+<div class="sidebar-content">
+	<h4>Some Text Widget</h4>
+	<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna.</p>
+</div>
 {% if config.plugins.taxonomylist.enabled %}
 <div class="sidebar-content">
     <h4>Popular Tags</h4>

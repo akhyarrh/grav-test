@@ -78,6 +78,8 @@ class Page
     protected $process;
     protected $summary_size;
     protected $markdown_extra;
+    protected $etag;
+    protected $last_modified;
 
     /**
      * @var Page Unmodified (original) version of the page. Used for copying and moving the page.
@@ -277,6 +279,12 @@ class Page
             if (isset($this->header->expires)) {
                 $this->expires = intval($this->header->expires);
             }
+            if (isset($this->header->etag)) {
+                $this->etag = (bool)$this->header->etag;
+            }
+            if (isset($this->header->last_modified)) {
+                $this->last_modified = (bool)$this->header->last_modified;
+            }
 
         }
 
@@ -303,21 +311,25 @@ class Page
     public function summary($size = null)
     {
         /** @var Config $config */
-        $config = self::getGrav()['config'];
+        $config = self::getGrav()['config']->get('site.summary');
         $content = $this->content();
 
+        if (isset($this->header->summary)) {
+            $config = array_merge($config, $this->header->summary);
+        }
+
         // Return summary based on settings in site config file
-        if (!$config->get('site.summary.enabled', true)) {
+        if (!$config['enabled']) {
             return $content;
         }
 
         // Get summary size from site config's file
         if (is_null($size)) {
-            $size = $config->get('site.summary.size', null);
+            $size = $config['size'];
         }
 
         // Return calculated summary based on summary divider's position
-        $format = $config->get('site.summary.format', 'short');
+        $format = $config['format'];
         // Return entire page content on wrong/ unknown format
         if (!in_array($format, array('short', 'long'))) {
             return $content;
@@ -357,7 +369,6 @@ class Page
             $this->id(time().md5($this->filePath()));
             $this->content = null;
         }
-
         // If no content, process it
         if ($this->content === null) {
             // Get media
@@ -562,6 +573,15 @@ class Page
         }
 
         return $default;
+    }
+
+    public function rawMarkdown($var = null)
+    {
+        if ($var !== null) {
+            $this->raw_content = $var;
+        }
+
+        return $this->raw_content;
     }
 
     /**
@@ -1128,6 +1148,40 @@ class Page
             $this->modified = $var;
         }
         return $this->modified;
+    }
+
+    /**
+     * Gets and sets the option to show the etag header for the page.
+     *
+     * @param  boolean $var show etag header
+     * @return boolean      show etag header
+     */
+    public function eTag($var = null)
+    {
+        if ($var !== null) {
+            $this->etag = $var;
+        }
+        if (!isset($this->etag)) {
+            $this->etag = (bool) self::getGrav()['config']->get('system.pages.etag');
+        }
+        return $this->etag;
+    }
+
+    /**
+     * Gets and sets the option to show the last_modified header for the page.
+     *
+     * @param  boolean $var show last_modified header
+     * @return boolean      show last_modified header
+     */
+    public function lastModified($var = null)
+    {
+        if ($var !== null) {
+            $this->last_modified = $var;
+        }
+        if (!isset($this->last_modified)) {
+            $this->last_modified = (bool) self::getGrav()['config']->get('system.pages.last_modified');
+        }
+        return $this->last_modified;
     }
 
     /**

@@ -2,6 +2,7 @@
 namespace Grav\Console;
 
 use Grav\Common\GravTrait;
+use Grav\Common\Composer;
 use Grav\Console\Cli\ClearCacheCommand;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -81,6 +82,13 @@ trait ConsoleTrait
             $this->output->writeln('');
             exit;
         }
+    }
+
+    public function composerUpdate($path, $action = 'install')
+    {
+        $composer = Composer::getComposerExecutor();
+
+        return system($composer . ' --working-dir="'.$path.'" --no-interaction --no-dev --prefer-dist -o '. $action);
     }
 
     /**

@@ -49,10 +49,8 @@ class ProblemsPlugin extends Plugin
         $this->check = CACHE_DIR . $validated_prefix . $cache->getKey();
 
         if (!file_exists($this->check)) {
-
             // If no issues remain, save a state file in the cache
             if (!$this->problemChecker()) {
-
                 // delete any existing validated files
                 foreach (new \GlobIterator(CACHE_DIR . $validated_prefix . '*') as $fileInfo) {
                     @unlink($fileInfo->getPathname());
@@ -82,7 +80,6 @@ class ProblemsPlugin extends Plugin
 
         $problems = '';
         foreach ($this->results as $key => $result) {
-
             if ($key == 'files') {
                 foreach ($result as $filename => $file_result) {
                     foreach ($file_result as $status => $text) {
@@ -128,7 +125,6 @@ class ProblemsPlugin extends Plugin
         $problems_found = false;
 
         $essential_files = [
-            '.htaccess' => false,
             'cache' => true,
             'logs' => true,
             'images' => true,
@@ -143,8 +139,17 @@ class ProblemsPlugin extends Plugin
             'vendor' => false
         ];
 
+        if (version_compare(GRAV_VERSION, '0.9.27', ">=")) {
+            $essential_files['backup'] = true;
+            $backup_folder = ROOT_DIR . 'backup';
+            // try to create backup folder if missing
+            if (!file_exists($backup_folder)) {
+                mkdir($backup_folder, 0770);
+            }
+        }
+
         // Check PHP version
-        if (version_compare(phpversion(), '5.4.0', '<')) {
+        if (version_compare(phpversion(), $min_php_version, '<')) {
             $problems_found = true;
             $php_version_adjective = 'lower';
             $php_version_status = 'error';
@@ -165,6 +170,17 @@ class ProblemsPlugin extends Plugin
             $gd_status = 'error';
         }
         $this->results['gd'] = [$gd_status => 'PHP GD (Image Manipulation Library) is '. $gd_adjective . 'installed'];
+
+        // Check for PHP CURL library
+        if (function_exists('curl_version')) {
+            $curl_adjective = '';
+            $curl_status = 'success';
+        } else {
+            $problems_found = true;
+            $curl_adjective = 'not ';
+            $curl_status = 'error';
+        }
+        $this->results['curl'] = [$curl_status => 'PHP Curl (Data Transfer Library) is '. $curl_adjective . 'installed'];
 
         // Check for essential files & perms
         $file_problems = [];
@@ -197,7 +213,6 @@ class ProblemsPlugin extends Plugin
 
         }
         if (sizeof($file_problems) > 0) {
-
             $this->results['files'] = $file_problems;
         }
 

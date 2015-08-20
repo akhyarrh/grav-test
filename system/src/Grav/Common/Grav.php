@@ -1,12 +1,14 @@
 <?php
 namespace Grav\Common;
 
+use Grav\Common\Language\Language;
 use Grav\Common\Page\Medium\ImageMedium;
 use Grav\Common\Page\Pages;
 use Grav\Common\Service\ConfigServiceProvider;
 use Grav\Common\Service\ErrorServiceProvider;
 use Grav\Common\Service\LoggerServiceProvider;
 use Grav\Common\Service\StreamsServiceProvider;
+use Grav\Common\Twig\Twig;
 use RocketTheme\Toolbox\DI\Container;
 use RocketTheme\Toolbox\Event\Event;
 use RocketTheme\Toolbox\Event\EventDispatcher;
@@ -55,6 +57,8 @@ class Grav extends Container
 
         $container['grav'] = $container;
 
+
+
         $container['debugger'] = new Debugger();
         $container['debugger']->startTimer('_init', 'Initialize');
 
@@ -76,6 +80,9 @@ class Grav extends Container
         $container['cache'] = function ($c) {
             return new Cache($c);
         };
+        $container['session'] = function ($c) {
+            return new Session($c);
+        };
         $container['plugins'] = function ($c) {
             return new Plugins();
         };
@@ -88,12 +95,16 @@ class Grav extends Container
         $container['taxonomy'] = function ($c) {
             return new Taxonomy($c);
         };
+        $container['language'] = function ($c) {
+            return new Language($c);
+        };
+
         $container['pages'] = function ($c) {
             return new Page\Pages($c);
         };
-        $container['assets'] = function ($c) {
-            return new Assets();
-        };
+
+        $container['assets'] = new Assets();
+
         $container['page'] = function ($c) {
             /** @var Pages $pages */
             $pages = $c['pages'];
@@ -106,29 +117,16 @@ class Grav extends Container
 
             $page = $pages->dispatch($path);
 
+            // handle redirect if not 'default route' configuration
+            if ($page && $c['config']->get('system.pages.redirect_default_route') && $page->route() != $path) {
+                $c->redirectLangSafe($page->route());
+            }
+
+            // if page is not found, try some fallback stuff
             if (!$page || !$page->routable()) {
-                $path_parts = pathinfo($path);
-                $page = $c['pages']->dispatch($path_parts['dirname'], true);
-                if ($page) {
-                    $media = $page->media()->all();
 
-                    $parsed_url = parse_url(urldecode($uri->basename()));
-
-                    $media_file = $parsed_url['path'];
-
-                    // if this is a media object, try actions first
-                    if (isset($media[$media_file])) {
-                        $medium = $media[$media_file];
-                        foreach ($uri->query(null, true) as $action => $params) {
-                            if (in_array($action, ImageMedium::$magic_actions)) {
-                                call_user_func_array(array(&$medium, $action), explode(',', $params));
-                            }
-                        }
-                        Utils::download($medium->path(), false);
-                    } else {
-                        Utils::download($page->path() . DIRECTORY_SEPARATOR . $uri->basename(), true);
-                    }
-                }
+                // Try fallback URL stuff...
+                $c->fallbackUrl($page, $path);
 
                 // If no page found, fire event
                 $event = $c->fireEvent('onPageNotFound');
@@ -161,6 +159,8 @@ class Grav extends Container
         $container->register(new StreamsServiceProvider);
         $container->register(new ConfigServiceProvider);
 
+        $container['inflector'] = new Inflector();
+
         $container['debugger']->stopTimer('_init');
 
         return $container;
@@ -175,6 +175,7 @@ class Grav extends Container
         $debugger->startTimer('_config', 'Configuration');
         $this['config']->init();
         $this['uri']->init();
+        $this['session']->init();
         $this['errors']->resetHandlers();
         $debugger->init();
         $this['config']->debug();
@@ -221,7 +222,6 @@ class Grav extends Container
         $this['pages']->init();
         $this->fireEvent('onPagesInitialized');
         $debugger->stopTimer('pages');
-
         $this->fireEvent('onPageInitialized');
 
         $debugger->addAssets();
@@ -257,7 +257,7 @@ class Grav extends Container
             $this['session']->close();
         }
 
-        if ($this['uri']->isExternal($route)) {
+        if ($uri->isExternal($route)) {
             $url = $route;
         } else {
             $url = rtrim($uri->rootUrl(), '/') .'/'. trim($route, '/');
@@ -265,6 +265,24 @@ class Grav extends Container
 
         header("Location: {$url}", true, $code);
         exit();
+    }
+
+    /**
+     * Redirect browser to another location taking language into account (preferred)
+     *
+     * @param string $route Internal route.
+     * @param int $code Redirection code (30x)
+     */
+    public function redirectLangSafe($route, $code = 303)
+    {
+        /** @var Language $language */
+        $language = $this['language'];
+
+        if ($language->enabled()) {
+            return $this->redirect($language->getLanguage() . $route, $code);
+        } else {
+            return $this->redirect($route);
+        }
     }
 
     /**
@@ -331,6 +349,11 @@ class Grav extends Container
         if (isset($this['page']->header()->http_response_code)) {
             http_response_code($this['page']->header()->http_response_code);
         }
+
+        // Vary: Accept-Encoding
+        if ($this['config']->get('system.pages.vary_accept_encoding', false)) {
+            header('Vary: Accept-Encoding');
+        }
     }
 
     /**
@@ -386,5 +409,57 @@ class Grav extends Container
         }
 
         $this->fireEvent('onShutdown');
+    }
+
+    /**
+     * This attempts to find media, other files, and download them
+     * @param $page
+     * @param $path
+     */
+    protected function fallbackUrl($page, $path)
+    {
+        /** @var Uri $uri */
+        $uri = $this['uri'];
+
+        $path_parts = pathinfo($path);
+        $page = $this['pages']->dispatch($path_parts['dirname'], true);
+        if ($page) {
+            $media = $page->media()->all();
+
+            $parsed_url = parse_url(urldecode($uri->basename()));
+
+            $media_file = $parsed_url['path'];
+
+            // if this is a media object, try actions first
+            if (isset($media[$media_file])) {
+                $medium = $media[$media_file];
+                foreach ($uri->query(null, true) as $action => $params) {
+                    if (in_array($action, ImageMedium::$magic_actions)) {
+                        call_user_func_array(array(&$medium, $action), explode(',', $params));
+                    }
+                }
+                Utils::download($medium->path(), false);
+            }
+
+            // unsupported media type, try to download it...
+            $uri_extension = $uri->extension();
+            if ($uri_extension) {
+                $extension = $uri_extension;
+            } else {
+                if (isset($path_parts['extension'])) {
+                    $extension = $path_parts['extension'];
+                } else {
+                    $extension = null;
+                }
+            }
+
+            if ($extension) {
+                $download = true;
+                if (in_array(ltrim($extension, '.'), $this['config']->get('system.media.unsupported_inline_types'))) {
+                    $download = false;
+                }
+                Utils::download($page->path() . DIRECTORY_SEPARATOR . $uri->basename(), $download);
+            }
+        }
     }
 }

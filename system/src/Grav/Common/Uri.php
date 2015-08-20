@@ -1,6 +1,9 @@
 <?php
 namespace Grav\Common;
 
+use Grav\Common\Page\Page;
+use Grav\Common\Page\Pages;
+
 /**
  * The URI object provides information about the current URL
  *
@@ -72,7 +75,10 @@ class Uri
      */
     public function init()
     {
-        $config = Grav::instance()['config'];
+        $grav = Grav::instance();
+
+        $config = $grav['config'];
+        $language = $grav['language'];
 
         // resets
         $this->paths = [];
@@ -85,6 +91,19 @@ class Uri
 
         // process params
         $uri = $this->processParams($uri, $config->get('system.param_sep'));
+
+        // set active language
+        $uri = $language->setActiveFromUri($uri);
+
+        // redirect to language specific homepage if configured to do so
+        if ($uri == '/' && $language->enabled()) {
+            if ($config->get('system.languages.home_redirect.include_route', true)) {
+                $prefix = $config->get('system.languages.home_redirect.include_lang', true) ? $language->getLanguage() . '/' : '';
+                $grav->redirect($prefix . Pages::getHomeRoute());
+            } elseif ($config->get('system.languages.home_redirect.include_lang', true)) {
+                $grav->redirect($language->getLanguage() . '/');
+            }
+        }
 
         // split the URL and params
         $bits = parse_url($uri);
@@ -101,7 +120,9 @@ class Uri
         // set the original basename
         $this->basename = $parts['basename'];
 
-        if (preg_match("/\.(".$config->get('system.pages.types').")$/", $parts['basename'])) {
+        $valid_page_types = implode('|', $config->get('system.pages.types'));
+
+        if (preg_match("/\.(".$valid_page_types.")$/", $parts['basename'])) {
             $uri = rtrim(str_replace(DIRECTORY_SEPARATOR, DS, $parts['dirname']), DS). '/' .$parts['filename'];
             $this->extension = $parts['extension'];
         }
@@ -384,7 +405,7 @@ class Uri
     }
 
     /**
-     * Retrun the IP address of the current user
+     * Return the IP address of the current user
      *
      * @return string ip address
      */
@@ -407,6 +428,7 @@ class Uri
         return $ipaddress;
 
     }
+
     /**
      * Is this an external URL? if it starts with `http` then yes, else false
      *
@@ -450,7 +472,7 @@ class Uri
      *
      * @return string the more friendly formatted url
      */
-    public static function convertUrl($page, $markdown_url)
+    public static function convertUrl(Page $page, $markdown_url)
     {
         $grav = Grav::instance();
 
@@ -458,12 +480,8 @@ class Uri
         $base_url = rtrim($grav['base_url'] . $grav['pages']->base(), '/');
 
         // if absolute and starts with a base_url move on
-        if (pathinfo($markdown_url, PATHINFO_DIRNAME) == '.') {
-            if ($page->url() == '/') {
-                return '/' . $markdown_url;
-            } else {
-                return $page->url() . '/' . $markdown_url;
-            }
+        if (pathinfo($markdown_url, PATHINFO_DIRNAME) == '.' && $page->url() == '/') {
+            return '/' . $markdown_url;
             // no path to convert
         } elseif ($base_url != '' && Utils::startsWith($markdown_url, $base_url)) {
             return $markdown_url;

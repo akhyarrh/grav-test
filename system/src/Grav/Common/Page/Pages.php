@@ -6,11 +6,13 @@ use Grav\Common\Config\Config;
 use Grav\Common\Utils;
 use Grav\Common\Cache;
 use Grav\Common\Taxonomy;
+use Grav\Common\Language;
 use Grav\Common\Data\Blueprint;
 use Grav\Common\Data\Blueprints;
 use Grav\Common\Filesystem\Folder;
 use RocketTheme\Toolbox\Event\Event;
 use RocketTheme\Toolbox\ResourceLocator\UniformResourceLocator;
+use Whoops\Exception\ErrorException;
 
 /**
  * GravPages is the class that is the entry point into the hierarchy of pages
@@ -64,6 +66,8 @@ class Pages
      * @var Types
      */
     static protected $types;
+
+    static protected $home_route;
 
     /**
      * Constructor
@@ -264,26 +268,34 @@ class Pages
             /** @var Config $config */
             $config = $this->grav['config'];
 
-            // Try redirects
-            $redirect = $config->get("site.redirects.{$url}");
-            if ($redirect) {
-                $this->grav->redirect($redirect);
-            }
-
             // See if route matches one in the site configuration
             $route = $config->get("site.routes.{$url}");
             if ($route) {
                 $page = $this->dispatch($route, $all);
             } else {
-                // Try looking for wildcards
-                foreach ($config->get("site.routes") as $alias => $route) {
-                    $match = rtrim($alias, '*');
-                    if (strpos($alias, '*') !== false && strpos($url, $match) !== false) {
-                        $wildcard_url = str_replace('*', str_replace($match, '', $url), $route);
-                        $page = isset($this->routes[$wildcard_url]) ? $this->get($this->routes[$wildcard_url]) : null;
-                        if ($page) {
-                            return $page;
+                // Try Regex style redirects
+                foreach ((array)$config->get("site.redirects") as $pattern => $replace) {
+                    $pattern = '#' . $pattern . '#';
+                    try {
+                        $found = preg_replace($pattern, $replace, $url);
+                        if ($found != $url) {
+                            $this->grav->redirectLangSafe($found);
                         }
+                    } catch (ErrorException $e) {
+                        $this->grav['log']->error('site.redirects: '. $pattern . '-> ' . $e->getMessage());
+                    }
+                }
+
+                // Try Regex style routes
+                foreach ((array)$config->get("site.routes") as $pattern => $replace) {
+                    $pattern = '#' . $pattern . '#';
+                    try {
+                        $found = preg_replace($pattern, $replace, $url);
+                        if ($found != $url) {
+                            $page = $this->dispatch($found, $all);
+                        }
+                    } catch (ErrorException $e) {
+                        $this->grav['log']->error('site.routes: '. $pattern . '-> ' . $e->getMessage());
                     }
                 }
             }
@@ -372,7 +384,8 @@ class Pages
         }
 
         $list = array();
-        if ($current->routable()) {
+
+        if (!$current->root()) {
             $list[$current->route()] = str_repeat('&nbsp; ', ($level-1)*2) . $current->title();
         }
 
@@ -392,8 +405,8 @@ class Pages
     {
         if (!self::$types) {
             self::$types = new Types();
-            self::$types->scanBlueprints('theme://blueprints/');
-            self::$types->scanTemplates('theme://templates/');
+            file_exists('theme://blueprints/') && self::$types->scanBlueprints('theme://blueprints/');
+            file_exists('theme://templates/') && self::$types->scanTemplates('theme://templates/');
 
             $event = new Event();
             $event->types = self::$types;
@@ -443,6 +456,48 @@ class Pages
     }
 
     /**
+     * Get's the home route
+     *
+     * @return string
+     */
+    public static function getHomeRoute()
+    {
+        if (empty(self::$home)) {
+            $grav = Grav::instance();
+
+            /** @var Config $config */
+            $config = $grav['config'];
+
+            /** @var Language $language */
+            $language = $grav['language'];
+
+            $home = $config->get('system.home.alias');
+
+            if ($language->enabled()) {
+                $home_aliases = $config->get('system.home.aliases');
+                if ($home_aliases) {
+                    $active = $language->getActive();
+                    $default = $language->getDefault();
+
+                    try {
+                        if ($active) {
+                            $home = $home_aliases[$active];
+                        } else {
+                            $home = $home_aliases[$default];
+                        }
+                    } catch (ErrorException $e) {
+                        $home = $home_aliases[$default];
+                    }
+
+                }
+            }
+
+            self::$home_route = trim($home, '/');
+        }
+        return self::$home_route;
+    }
+
+    /**
      * Builds pages.
      *
      * @internal
@@ -454,9 +509,12 @@ class Pages
         /** @var Config $config */
         $config = $this->grav['config'];
 
+        /** @var Language $language */
+        $language = $this->grav['language'];
+
         /** @var UniformResourceLocator $locator */
         $locator = $this->grav['locator'];
-        $pagesDir = $locator->findResource('page://');
+        $pages_dir = $locator->findResource('page://');
 
         if ($config->get('system.cache.enabled')) {
             /** @var Cache $cache */
@@ -471,33 +529,55 @@ class Pages
                     $last_modified = 0;
                     break;
                 case 'folder':
-                    $last_modified = Folder::lastModifiedFolder($pagesDir);
+                    $last_modified = Folder::lastModifiedFolder($pages_dir);
                     break;
                 default:
-                    $last_modified = Folder::lastModifiedFile($pagesDir);
+                    $last_modified = Folder::lastModifiedFile($pages_dir);
             }
 
-            $page_cache_id = md5(USER_DIR.$last_modified.$config->checksum());
+            $page_cache_id = md5(USER_DIR.$last_modified.$language->getActive().$config->checksum());
 
             list($this->instances, $this->routes, $this->children, $taxonomy_map, $this->sort) = $cache->fetch($page_cache_id);
             if (!$this->instances) {
                 $this->grav['debugger']->addMessage('Page cache missed, rebuilding pages..');
-                $this->recurse($pagesDir);
-                $this->buildRoutes();
 
-                // save pages, routes, taxonomy, and sort to cache
-                $cache->save(
-                    $page_cache_id,
-                    array($this->instances, $this->routes, $this->children, $taxonomy->taxonomy(), $this->sort)
-                );
+                // recurse pages and cache result
+                $this->resetPages($pages_dir, $page_cache_id);
+
             } else {
                 // If pages was found in cache, set the taxonomy
                 $this->grav['debugger']->addMessage('Page cache hit.');
                 $taxonomy->taxonomy($taxonomy_map);
             }
         } else {
-            $this->recurse($pagesDir);
+            $this->recurse($pages_dir);
             $this->buildRoutes();
+        }
+    }
+
+    /**
+     * Accessible method to manually reset the pages cache
+     *
+     * @param $pages_dir
+     * @param $page_cache_id
+     */
+    public function resetPages($pages_dir, $page_cache_id)
+    {
+        $this->recurse($pages_dir);
+        $this->buildRoutes();
+
+        // cache if needed
+        if ($this->grav['config']->get('system.cache.enabled')) {
+                /** @var Cache $cache */
+            $cache = $this->grav['cache'];
+            /** @var Taxonomy $taxonomy */
+            $taxonomy = $this->grav['taxonomy'];
+
+            // save pages, routes, taxonomy, and sort to cache
+            $cache->save(
+                $page_cache_id,
+                array($this->instances, $this->routes, $this->children, $taxonomy->taxonomy(), $this->sort)
+            );
         }
     }
 
@@ -513,11 +593,22 @@ class Pages
     protected function recurse($directory, Page &$parent = null)
     {
         $directory  = rtrim($directory, DS);
-        $iterator   = new \DirectoryIterator($directory);
         $page       = new Page;
 
         /** @var Config $config */
         $config     = $this->grav['config'];
+
+        /** @var Language $language */
+        $language = $this->grav['language'];
+
+        // stuff to do at root page
+        if ($parent === null) {
+
+            // Fire event for memory and time consuming plugins...
+            if ($config->get('system.pages.events.page')) {
+                $this->grav->fireEvent('onBuildPagesInitialized');
+            }
+        }
 
         $page->path($directory);
         if ($parent) {
@@ -537,33 +628,44 @@ class Pages
             throw new \RuntimeException('Fatal error when creating page instances.');
         }
 
+        $content_exists = false;
+        $pages_found = glob($directory.'/*'.CONTENT_EXT);
+        $page_extensions = $language->getFallbackPageExtensions();
+
+        if ($pages_found) {
+            foreach ($page_extensions as $extension) {
+                foreach ($pages_found as $found) {
+                    if (preg_match('/^.*\/[0-9A-Za-z\-\_]+('.$extension.')$/', $found)) {
+                        $page_found = $found;
+                        $page_extension = $extension;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        if ($parent && !empty($page_found)) {
+            $file = new \SplFileInfo($page_found);
+            $page->init($file, $page_extension);
+
+            $content_exists = true;
+
+            if ($config->get('system.pages.events.page')) {
+                $this->grav->fireEvent('onPageProcessed', new Event(['page' => $page]));
+            }
+        }
+
         // set current modified of page
         $last_modified = $page->modified();
 
-        // flat for content availability
-        $content_exists = false;
-
         /** @var \DirectoryIterator $file */
-        foreach ($iterator as $file) {
-            if ($file->isDot()) {
-                continue;
-            }
-
+        foreach (new \FilesystemIterator($directory) as $file) {
             $name = $file->getFilename();
 
             if ($file->isFile()) {
                 // Update the last modified if it's newer than already found
                 if ($file->getBasename() !== '.DS_Store' && ($modified = $file->getMTime()) > $last_modified) {
                     $last_modified = $modified;
-                }
-
-                if (preg_match('/^[^.].*'.CONTENT_EXT.'$/', $name)) {
-                    $page->init($file);
-                    $content_exists = true;
-
-                    if ($config->get('system.pages.events.page')) {
-                        $this->grav->fireEvent('onPageProcessed', new Event(['page' => $page]));
-                    }
                 }
             } elseif ($file->isDir()) {
                 if (!$page->path()) {
@@ -608,29 +710,45 @@ class Pages
         /** @var $taxonomy Taxonomy */
         $taxonomy = $this->grav['taxonomy'];
 
+        // Get the home route
+        $home = self::getHomeRoute();
+
         // Build routes and taxonomy map.
         /** @var $page Page */
         foreach ($this->instances as $page) {
-            $parent = $page->parent();
-
-            if ($parent) {
-                $route = rtrim($parent->route(), '/') . '/' . $page->slug();
-                $this->routes[$route] = $page->path();
-                $page->route($route);
-            }
-
-            if (!empty($route)) {
+            if (!$page->root()) {
+                // process taxonomy
                 $taxonomy->addTaxonomy($page);
-            } else {
-                $page->routable(false);
+
+                $route =  $page->route();
+                $raw_route = $page->rawRoute();
+                $page_path = $page->path();
+
+                // add regular route
+                $this->routes[$route] = $page_path;
+
+                // add raw route
+                if ($raw_route != $route) {
+                    $this->routes[$raw_route] = $page_path;
+                }
+
+                // add canonical route
+                $route_canonical = $page->routeCanonical();
+                if ($route_canonical && ($route !== $route_canonical)) {
+                    $this->routes[$route_canonical] = $page_path;
+                }
+
+                // add aliases to routes list if they are provided
+                $route_aliases = $page->routeAliases();
+                if ($route_aliases) {
+                    foreach ($route_aliases as $alias) {
+                        $this->routes[$alias] = $page_path;
+                    }
+                }
             }
         }
 
-        /** @var Config $config */
-        $config = $this->grav['config'];
-
         // Alias and set default route to home page.
-        $home = trim($config->get('system.home.alias'), '/');
         if ($home && isset($this->routes['/' . $home])) {
             $this->routes['/'] = $this->routes['/' . $home];
             $this->get($this->routes['/' . $home])->route('/');

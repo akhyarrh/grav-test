@@ -9,6 +9,9 @@ use Grav\Common\GravTrait;
 /**
  * User object
  *
+ * @property mixed authenticated
+ * @property mixed password
+ * @property bool|string hashed_password
  * @author RocketTheme
  * @license MIT
  */
@@ -57,14 +60,13 @@ class User extends Data
 
         // Plain-text is still stored
         if ($this->password) {
-
             if ($password !== $this->password) {
                 // Plain-text passwords do not match, we know we should fail but execute
                 // verify to protect us from timing attacks and return false regardless of
                 // the result
                 Authentication::verify($password, self::getGrav()['config']->get('system.security.default_hash'));
                 return false;
-            }  else {
+            } else {
                 // Plain-text does match, we can update the hash and proceed
                 $save = true;
 
@@ -90,13 +92,31 @@ class User extends Data
     }
 
     /**
-     * Checks user authorisation to the action.
+     * Save user without the username
+     */
+    public function save()
+    {
+        $file = $this->file();
+        if ($file) {
+            $username = $this->get('username');
+            unset($this->username);
+            $file->save($this->items);
+            $this->set('username', $username);
+        }
+    }
+
+    /**
+     * Checks user authorization to the action.
      *
      * @param  string  $action
      * @return bool
      */
     public function authorise($action)
     {
+        if (empty($this->items)) {
+            return false;
+        }
+
         return $this->get("access.{$action}") === true;
     }
 }

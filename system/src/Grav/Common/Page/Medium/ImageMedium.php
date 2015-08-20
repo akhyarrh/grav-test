@@ -2,7 +2,6 @@
 namespace Grav\Common\Page\Medium;
 
 use Grav\Common\Data\Blueprint;
-use Gregwar\Image\Image as ImageFile;
 
 class ImageMedium extends Medium
 {
@@ -67,17 +66,23 @@ class ImageMedium extends Medium
     {
         parent::__construct($items, $blueprint);
 
+        $config = self::$grav['config'];
+
         $image_info = getimagesize($this->get('filepath'));
         $this->def('width', $image_info[0]);
         $this->def('height', $image_info[1]);
         $this->def('mime', $image_info['mime']);
-        $this->def('debug', self::$grav['config']->get('system.images.debug'));
+        $this->def('debug', $config->get('system.images.debug'));
 
         $this->set('thumbnails.media', $this->get('filepath'));
 
-        $this->default_quality = self::$grav['config']->get('system.images.default_image_quality', 85);
+        $this->default_quality = $config->get('system.images.default_image_quality', 85);
 
         $this->reset();
+
+        if ($config->get('system.images.cache_all', false)) {
+            $this->cache();
+        }
     }
 
     /**
@@ -128,6 +133,19 @@ class ImageMedium extends Medium
         }
 
         return self::$grav['base_url'] . $output . $this->querystring() . $this->urlHash();
+    }
+
+    /**
+     * Simply processes with no extra methods.  Useful for triggering events.
+     *
+     * @return $this
+     */
+    public function cache()
+    {
+        if (!$this->image) {
+            $this->image();
+        }
+        return $this;
     }
 
 
@@ -216,7 +234,7 @@ class ImageMedium extends Medium
     }
 
     /**
-     * Turn the current Medium inta a Link with lightbox enabled
+     * Turn the current Medium into a Link with lightbox enabled
      *
      * @param  int  $width
      * @param  int  $height
@@ -364,6 +382,10 @@ class ImageMedium extends Medium
             return parent::path(false);
         }
 
+        if (isset($this->result)) {
+            return $this->result;
+        }
+
         if ($this->get('debug') && !$this->debug_watermarked) {
             $ratio = $this->get('ratio');
             if (!$ratio) {
@@ -375,9 +397,7 @@ class ImageMedium extends Medium
             $this->image->merge(ImageFile::open($overlay));
         }
 
-        $result = $this->image->cacheFile($this->format, $this->quality);
-
-        return $result;
+        return $this->image->cacheFile($this->format, $this->quality);
     }
 
     /**

@@ -60,6 +60,12 @@ class Config extends Data
                 '' => ['user://themes'],
             ]
         ],
+        'languages' => [
+            'type' => 'ReadOnlyStream',
+            'prefixes' => [
+                '' => ['user://languages', 'system/languages'],
+            ]
+        ],
         'cache' => [
             'type' => 'Stream',
             'prefixes' => [
@@ -85,16 +91,20 @@ class Config extends Data
 
     protected $blueprintFiles = [];
     protected $configFiles = [];
+    protected $languageFiles = [];
     protected $checksum;
     protected $timestamp;
 
     protected $configLookup;
     protected $blueprintLookup;
     protected $pluginLookup;
+    protected $languagesLookup;
 
     protected $finder;
     protected $environment;
     protected $messages = [];
+
+    protected $languages;
 
     public function __construct(array $setup = array(), Grav $grav = null, $environment = null)
     {
@@ -110,7 +120,6 @@ class Config extends Data
         $setup['streams']['schemes'] += $this->streams;
 
         $setup = $this->autoDetectEnvironmentConfig($setup);
-        $this->messages[] = $setup['streams']['schemes']['config']['prefixes'][''];
 
         $this->setup = $setup;
         parent::__construct($setup);
@@ -164,42 +173,57 @@ class Config extends Data
         $this->blueprintLookup = $locator->findResources('blueprints://config');
         $this->pluginLookup = $locator->findResources('plugins://');
 
+
         $this->loadCompiledBlueprints($this->blueprintLookup, $this->pluginLookup, 'master');
         $this->loadCompiledConfig($this->configLookup, $this->pluginLookup, 'master');
+
+        // process languages if supported
+        if ($this->get('system.languages.translations', true)) {
+            $this->languagesLookup = $locator->findResources('languages://');
+            $this->loadCompiledLanguages($this->languagesLookup, $this->pluginLookup, 'master');
+        }
 
         $this->initializeLocator($locator);
     }
 
     public function checksum()
     {
-        $checkBlueprints = $this->get('system.cache.check.blueprints', false);
-        $checkConfig = $this->get('system.cache.check.config', true);
-        $checkSystem = $this->get('system.cache.check.system', true);
+        if (empty($this->checksum)) {
+            $checkBlueprints = $this->get('system.cache.check.blueprints', false);
+            $checkLanguages = $this->get('system.cache.check.languages', false);
+            $checkConfig = $this->get('system.cache.check.config', true);
+            $checkSystem = $this->get('system.cache.check.system', true);
 
-        if (!$checkBlueprints && !$checkConfig && !$checkSystem) {
-            $this->messages[] = 'Skip configuration timestamp check.';
-            return false;
+            if (!$checkBlueprints && !!$checkLanguages && $checkConfig && !$checkSystem) {
+                $this->messages[] = 'Skip configuration timestamp check.';
+                return false;
+            }
+
+            // Generate checksum according to the configuration settings.
+            if (!$checkConfig) {
+                // Just check changes in system.yaml files and ignore all the other files.
+                $cc = $checkSystem ? $this->finder->locateConfigFile($this->configLookup, 'system') : [];
+            } else {
+                // Check changes in all configuration files.
+                $cc = $this->finder->locateConfigFiles($this->configLookup, $this->pluginLookup);
+            }
+
+            if ($checkBlueprints) {
+                $cb = $this->finder->locateBlueprintFiles($this->blueprintLookup, $this->pluginLookup);
+            } else {
+                $cb = [];
+            }
+
+            if ($checkLanguages) {
+                $cl = $this->finder->locateLanguageFiles($this->languagesLookup, $this->pluginLookup);
+            } else {
+                $cl = [];
+            }
+
+            $this->checksum = md5(json_encode([$cc, $cb, $cl]));
         }
 
-        // Generate checksum according to the configuration settings.
-        if (!$checkConfig) {
-            $this->messages[] = 'Check configuration timestamps from system.yaml files.';
-            // Just check changes in system.yaml files and ignore all the other files.
-            $cc = $checkSystem ? $this->finder->locateConfigFile($this->configLookup, 'system') : [];
-        } else {
-            $this->messages[] = 'Check configuration timestamps from all configuration files.';
-            // Check changes in all configuration files.
-            $cc = $this->finder->locateConfigFiles($this->configLookup, $this->pluginLookup);
-        }
-
-        if ($checkBlueprints) {
-            $this->messages[] = 'Check blueprint timestamps from all blueprint files.';
-            $cb = $this->finder->locateBlueprintFiles($this->blueprintLookup, $this->pluginLookup);
-        } else {
-            $cb = [];
-        }
-
-        return md5(json_encode([$cc, $cb]));
+        return $this->checksum;
     }
 
     protected function autoDetectEnvironmentConfig($items)
@@ -313,6 +337,71 @@ class Config extends Data
     }
 
     /**
+     * @param      $languages
+     * @param      $plugins
+     * @param null $filename
+     */
+    protected function loadCompiledLanguages($languages, $plugins, $filename = null)
+    {
+        $checksum = md5(json_encode($languages));
+        $filename = $filename
+            ? CACHE_DIR . 'compiled/languages/' . $filename . '-' . $this->environment . '.php'
+            : CACHE_DIR . 'compiled/languages/' . $checksum . '-' . $this->environment . '.php';
+        $file = PhpFile::instance($filename);
+        $cache = $file->exists() ? $file->content() : null;
+        $languageFiles = $this->finder->locateLanguageFiles($languages, $plugins);
+        $checksum .= ':' . md5(json_encode($languageFiles));
+        $class = get_class($this);
+
+        // Load real file if cache isn't up to date (or is invalid).
+        if (
+            !is_array($cache)
+            || !isset($cache['checksum'])
+            || !isset($cache['@class'])
+            || $cache['checksum'] != $checksum
+            || $cache['@class'] != $class
+        ) {
+            // Attempt to lock the file for writing.
+            $file->lock(false);
+
+            // Load languages.
+            $this->languages = new Languages;
+
+            if (isset($languageFiles['user/plugins'])) {
+                foreach ((array) $languageFiles['user/plugins'] as $plugin => $item) {
+                    $lang_file = CompiledYamlFile::instance($item['file']);
+                    $content = $lang_file->content();
+                    $this->languages->mergeRecursive($content);
+                }
+                unset($languageFiles['user/plugins']);
+            }
+
+            foreach ($languageFiles as $location) {
+                foreach ($location as $lang => $item) {
+                    $lang_file = CompiledYamlFile::instance($item['file']);
+                    $content = $lang_file->content();
+                    $this->languages->join($lang, $content, '/');
+                }
+            }
+
+            $cache = [
+                '@class'   => $class,
+                'checksum' => $checksum,
+                'files'    => $languageFiles,
+                'data'     => $this->languages->toArray()
+            ];
+            // If compiled file wasn't already locked by another process, save it.
+            if ($file->locked() !== false) {
+                $this->messages[] = 'Saving compiled languages.';
+                $file->save($cache);
+                $file->unlock();
+            }
+        } else {
+            $this->languages = new Languages($cache['data']);
+        }
+    }
+
+    /**
      * Load blueprints.
      *
      * @param array  $files
@@ -379,5 +468,10 @@ class Config extends Data
         }
 
         return $schemes;
+    }
+
+    public function getLanguages()
+    {
+        return $this->languages;
     }
 }

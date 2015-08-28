@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "dc28507ad820c5a56ea06da496935712",
+    "hash": "5b11715e8220f84c86c9004fe463c0db",
     "packages": [
         {
             "name": "doctrine/cache",
@@ -78,16 +78,16 @@
         },
         {
             "name": "donatj/phpuseragentparser",
-            "version": "v0.3.6",
+            "version": "v0.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/donatj/PhpUserAgent.git",
-                "reference": "4d52dd811016383d95c7dabfa29e824d7523e581"
+                "reference": "6392753c32f3d162897c02bd72c41e356b002a57"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/donatj/PhpUserAgent/zipball/4d52dd811016383d95c7dabfa29e824d7523e581",
-                "reference": "4d52dd811016383d95c7dabfa29e824d7523e581",
+                "url": "https://api.github.com/repos/donatj/PhpUserAgent/zipball/6392753c32f3d162897c02bd72c41e356b002a57",
+                "reference": "6392753c32f3d162897c02bd72c41e356b002a57",
                 "shasum": ""
             },
             "require": {
@@ -95,7 +95,8 @@
             },
             "require-dev": {
                 "camspiers/json-pretty": "0.1.*",
-                "donatj/drop": "*"
+                "donatj/drop": "*",
+                "phpunit/phpunit": "4.*"
             },
             "type": "library",
             "autoload": {
@@ -118,11 +119,13 @@
             "description": "Simple, streamlined PHP user-agent parser",
             "homepage": "http://donatstudios.com/PHP-Parser-HTTP_USER_AGENT",
             "keywords": [
+                "browser",
+                "browser detection",
                 "parser",
                 "user agent",
                 "useragent"
             ],
-            "time": "2015-04-23 16:02:12"
+            "time": "2015-08-25 16:30:11"
         },
         {
             "name": "erusev/parsedown",
@@ -213,12 +216,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/filp/whoops.git",
-                "reference": "494fa733db16e2ac66c514621150bd97a0a4eb37"
+                "reference": "cfe9ce209d2705fece1743f0af45f58fec840458"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/filp/whoops/zipball/494fa733db16e2ac66c514621150bd97a0a4eb37",
-                "reference": "494fa733db16e2ac66c514621150bd97a0a4eb37",
+                "url": "https://api.github.com/repos/filp/whoops/zipball/cfe9ce209d2705fece1743f0af45f58fec840458",
+                "reference": "cfe9ce209d2705fece1743f0af45f58fec840458",
                 "shasum": ""
             },
             "require": {
@@ -263,7 +266,7 @@
                 "whoops",
                 "zf2"
             ],
-            "time": "2015-06-30 08:10:58"
+            "time": "2015-07-23 15:48:15"
         },
         {
             "name": "gregwar/cache",
@@ -661,16 +664,16 @@
         },
         {
             "name": "rockettheme/toolbox",
-            "version": "1.0.0",
+            "version": "1.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/rockettheme/toolbox.git",
-                "reference": "e45437877e296c23cbbc89cbd448fe7683450695"
+                "reference": "9e74782dd4876527dbc7b62a374ea3cf59b8c492"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/rockettheme/toolbox/zipball/e45437877e296c23cbbc89cbd448fe7683450695",
-                "reference": "e45437877e296c23cbbc89cbd448fe7683450695",
+                "url": "https://api.github.com/repos/rockettheme/toolbox/zipball/9e74782dd4876527dbc7b62a374ea3cf59b8c492",
+                "reference": "9e74782dd4876527dbc7b62a374ea3cf59b8c492",
                 "shasum": ""
             },
             "require": {
@@ -706,7 +709,7 @@
                 "php",
                 "rockettheme"
             ],
-            "time": "2015-04-22 18:25:07"
+            "time": "2015-08-20 23:00:06"
         },
         {
             "name": "symfony/console",
@@ -933,25 +936,29 @@
         },
         {
             "name": "twig/twig",
-            "version": "v1.19.0",
+            "version": "v1.21.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twigphp/Twig.git",
-                "reference": "edbeaf43b0a606cdaadc32a11d2673614a377b90"
+                "reference": "913d282caca9ee0e8d05940c6caa486d58810dd4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twigphp/Twig/zipball/edbeaf43b0a606cdaadc32a11d2673614a377b90",
-                "reference": "edbeaf43b0a606cdaadc32a11d2673614a377b90",
+                "url": "https://api.github.com/repos/twigphp/Twig/zipball/913d282caca9ee0e8d05940c6caa486d58810dd4",
+                "reference": "913d282caca9ee0e8d05940c6caa486d58810dd4",
                 "shasum": ""
             },
             "require": {
                 "php": ">=5.2.7"
             },
+            "require-dev": {
+                "symfony/debug": "~2.7",
+                "symfony/phpunit-bridge": "~2.7"
+            },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "1.19-dev"
+                    "dev-master": "1.21-dev"
                 }
             },
             "autoload": {
@@ -986,7 +993,7 @@
             "keywords": [
                 "templating"
             ],
-            "time": "2015-07-31 13:45:26"
+            "time": "2015-08-24 09:51:18"
         }
     ],
     "packages-dev": [],

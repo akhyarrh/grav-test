@@ -2,7 +2,6 @@
 namespace Grav\Common\Twig;
 
 use Grav\Common\Grav;
-use Grav\Common\Inflector;
 use Grav\Common\Utils;
 use Grav\Common\Markdown\Parsedown;
 use Grav\Common\Markdown\ParsedownExtra;
@@ -45,22 +44,28 @@ class TwigExtension extends \Twig_Extension
     public function getFilters()
     {
         return [
-            new \Twig_SimpleFilter('fieldName', [$this,'fieldNameFilter']),
-            new \Twig_SimpleFilter('safe_email', [$this,'safeEmailFilter']),
-            new \Twig_SimpleFilter('randomize', [$this,'randomizeFilter']),
-            new \Twig_SimpleFilter('truncate', [$this,'truncateFilter']),
             new \Twig_SimpleFilter('*ize', [$this,'inflectorFilter']),
-            new \Twig_SimpleFilter('md5', [$this,'md5Filter']),
-            new \Twig_SimpleFilter('sort_by_key', [$this,'sortByKeyFilter']),
-            new \Twig_SimpleFilter('ksort', [$this,'ksortFilter']),
-            new \Twig_SimpleFilter('contains', [$this, 'containsFilter']),
-            new \Twig_SimpleFilter('nicetime', [$this, 'nicetimeFilter']),
             new \Twig_SimpleFilter('absolute_url', [$this, 'absoluteUrlFilter']),
-            new \Twig_SimpleFilter('markdown', [$this, 'markdownFilter']),
-            new \Twig_SimpleFilter('starts_with', [$this, 'startsWithFilter']),
+            new \Twig_SimpleFilter('contains', [$this, 'containsFilter']),
+            new \Twig_SimpleFilter('defined', [$this, 'definedDefaultFilter']),
             new \Twig_SimpleFilter('ends_with', [$this, 'endsWithFilter']),
+            new \Twig_SimpleFilter('fieldName', [$this,'fieldNameFilter']),
+            new \Twig_SimpleFilter('ksort', [$this,'ksortFilter']),
+            new \Twig_SimpleFilter('ltrim', [$this, 'ltrimFilter']),
+            new \Twig_SimpleFilter('markdown', [$this, 'markdownFilter']),
+            new \Twig_SimpleFilter('md5', [$this,'md5Filter']),
+            new \Twig_SimpleFilter('nicetime', [$this, 'nicetimeFilter']),
+            new \Twig_SimpleFilter('randomize', [$this,'randomizeFilter']),
+            new \Twig_SimpleFilter('rtrim', [$this, 'rtrimFilter']),
+            new \Twig_SimpleFilter('safe_email', [$this,'safeEmailFilter']),
+            new \Twig_SimpleFilter('safe_truncate', ['\Grav\Common\Utils','safeTruncate']),
+            new \Twig_SimpleFilter('safe_truncate_html', ['\Grav\Common\Utils','safeTruncateHTML']),
+            new \Twig_SimpleFilter('sort_by_key', [$this,'sortByKeyFilter']),
+            new \Twig_SimpleFilter('starts_with', [$this, 'startsWithFilter']),
             new \Twig_SimpleFilter('t', [$this, 'translate']),
-            new \Twig_SimpleFilter('ta', [$this, 'translateArray'])
+            new \Twig_SimpleFilter('ta', [$this, 'translateArray']),
+            new \Twig_SimpleFilter('truncate', ['\Grav\Common\Utils','truncate']),
+            new \Twig_SimpleFilter('truncate_html', ['\Grav\Common\Utils','truncateHTML']),
         ];
     }
 
@@ -72,15 +77,17 @@ class TwigExtension extends \Twig_Extension
     public function getFunctions()
     {
         return [
-            new \Twig_SimpleFunction('repeat', [$this, 'repeatFunc']),
-            new \Twig_SimpleFunction('url', [$this, 'urlFunc']),
-            new \Twig_SimpleFunction('dump', [$this, 'dump'], ['needs_context' => true, 'needs_environment' => true]),
-            new \Twig_SimpleFunction('debug', [$this, 'dump'], ['needs_context' => true, 'needs_environment' => true]),
-            new \Twig_SimpleFunction('gist', [$this, 'gistFunc']),
-            new \Twig_simpleFunction('random_string', [$this, 'randomStringFunc']),
             new \Twig_SimpleFunction('array', [$this, 'arrayFunc']),
+            new \Twig_simpleFunction('authorize', [$this, 'authorize']),
+            new \Twig_SimpleFunction('debug', [$this, 'dump'], ['needs_context' => true, 'needs_environment' => true]),
+            new \Twig_SimpleFunction('dump', [$this, 'dump'], ['needs_context' => true, 'needs_environment' => true]),
+            new \Twig_SimpleFunction('gist', [$this, 'gistFunc']),
+            new \Twig_SimpleFunction('repeat', [$this, 'repeatFunc']),
+            new \Twig_simpleFunction('random_string', [$this, 'randomStringFunc']),
+            new \Twig_SimpleFunction('string', [$this, 'stringFunc']),
             new \Twig_simpleFunction('t', [$this, 'translate']),
-            new \Twig_simpleFunction('ta', [$this, 'translateArray'])
+            new \Twig_simpleFunction('ta', [$this, 'translateArray']),
+            new \Twig_SimpleFunction('url', [$this, 'urlFunc']),
         ];
     }
 
@@ -112,33 +119,6 @@ class TwigExtension extends \Twig_Extension
         }
         return $email;
     }
-
-    /**
-     * Truncate content by a limit.
-     *
-     * @param  string $string
-     * @param  int    $limit    Max number of characters.
-     * @param  string $break    Break point.
-     * @param  string $pad      Appended padding to the end of the string.
-     * @return string
-     */
-    public function truncateFilter($string, $limit = 150, $break = ".", $pad = "&hellip;")
-    {
-        // return with no change if string is shorter than $limit
-        if (strlen($string) <= $limit) {
-            return $string;
-        }
-
-        // is $break present between $limit and the end of the string?
-        if (false !== ($breakpoint = strpos($string, $break, $limit))) {
-            if ($breakpoint < strlen($string) - 1) {
-                $string = substr($string, 0, $breakpoint) . $pad;
-            }
-        }
-
-        return $string;
-    }
-
 
     /**
      * Returns array in a random order.
@@ -192,7 +172,6 @@ class TwigExtension extends \Twig_Extension
      */
     public function inflectorFilter($action, $data, $count = null)
     {
-        // TODO: check this and fix the docblock if needed.
         $action = $action.'ize';
 
         $inflector = $this->grav['inflector'];
@@ -370,15 +349,36 @@ class TwigExtension extends \Twig_Extension
         return Utils::endsWith($haystack, $needle);
     }
 
+    public function definedDefaultFilter($value, $default = null)
+    {
+        if (isset($value)) {
+            return $value;
+        } else {
+            return $default;
+        }
+    }
+
+    public function rtrimFilter($value, $chars = null)
+    {
+        return rtrim($value, $chars);
+    }
+
+    public function ltrimFilter($value, $chars = null)
+    {
+        return ltrim($value, $chars);
+    }
+
     public function translate()
     {
-         return $this->grav['language']->translate(func_get_args());
+        return $this->grav['language']->translate(func_get_args());
     }
 
     public function translateArray($key, $index, $lang = null)
     {
         return $this->grav['language']->translateArray($key, $index, $lang);
     }
+
+
 
 
     /**
@@ -482,13 +482,65 @@ class TwigExtension extends \Twig_Extension
         return Utils::generateRandomString($count);
     }
 
+    /**
+     * Cast a value to array
+     *
+     * @param $value
+     *
+     * @return array
+     */
     public function arrayFunc($value)
     {
         return (array) $value;
     }
 
+    /**
+     * Returns a string from a value. If the value is array, return it json encoded
+     *
+     * @param $value
+     *
+     * @return string
+     */
+    public function stringFunc($value)
+    {
+        if (is_array($value)) { //format the array as a string
+            return json_encode($value);
+        } else {
+            return $value;
+        }
+    }
+
+    /**
+     * Translate a string
+     *
+     * @return string
+     */
     public function translateFunc()
     {
         return $this->grav['language']->translate(func_get_args());
+    }
+
+    /**
+     * Authorize an action. Returns true if the user is logged in and has the right to execute $action.
+     *
+     * @param string $action
+     *
+     * @return bool
+     */
+    public function authorize($action)
+    {
+        if (!$this->grav['user']->authenticated) {
+            return false;
+        }
+
+        $action = (array)$action;
+
+        foreach ($action as $a) {
+            if ($this->grav['user']->authorize($a)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

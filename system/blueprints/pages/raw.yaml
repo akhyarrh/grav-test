@@ -21,13 +21,14 @@ form:
             frontmatter:
               type: frontmatter
               label: PLUGIN_ADMIN.FRONTMATTER
+              autofocus: true
 
             content:
               type: markdown
               label: PLUGIN_ADMIN.CONTENT
 
             uploads:
-              type: uploads
+              type: pagemedia
               label: PLUGIN_ADMIN.PAGE_MEDIA
 
         options:
@@ -73,7 +74,7 @@ form:
                       options:
                         '/': PLUGIN_ADMIN.DEFAULT_OPTION_ROOT
 
-                    type:
+                    name:
                       type: select
                       classes: fancy
                       label: PLUGIN_ADMIN.DISPLAY_TEMPLATE

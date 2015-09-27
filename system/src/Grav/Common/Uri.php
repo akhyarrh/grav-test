@@ -31,7 +31,6 @@ class Uri
      */
     public function __construct()
     {
-
         $base = 'http://';
         $name = isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost';
         $port = isset($_SERVER['SERVER_PORT']) ? $_SERVER['SERVER_PORT'] : 80;
@@ -85,9 +84,19 @@ class Uri
         $this->params = [];
         $this->query = [];
 
-
         // get any params and remove them
         $uri = str_replace($this->root, '', $this->url);
+
+        // remove the setup.php based base if set:
+        $setup_base = $grav['pages']->base();
+        if ($setup_base) {
+            $uri = str_replace($setup_base, '', $uri);
+        }
+
+        // If configured to, redirect trailing slash URI's with a 301 redirect
+        if ($config->get('system.pages.redirect_trailing_slash', false) && $uri != '/' && Utils::endsWith($uri, '/')) {
+            $grav->redirect(rtrim($uri, '/'), 301);
+        }
 
         // process params
         $uri = $this->processParams($uri, $config->get('system.param_sep'));
@@ -104,6 +113,7 @@ class Uri
                 $grav->redirect($language->getLanguage() . '/');
             }
         }
+
 
         // split the URL and params
         $bits = parse_url($uri);
@@ -472,12 +482,19 @@ class Uri
      *
      * @return string the more friendly formatted url
      */
-    public static function convertUrl(Page $page, $markdown_url)
+    public static function convertUrl(Page $page, $markdown_url, $type = 'link')
     {
         $grav = Grav::instance();
 
+        // Link processing should prepend language
+        $language_append = '';
+        if ($type == 'link') {
+            $active_language = $grav['language']->getActive();
+            $language_append = $active_language ? '/'.$active_language : '';
+        }
+
         $pages_dir = $grav['locator']->findResource('page://');
-        $base_url = rtrim($grav['base_url'] . $grav['pages']->base(), '/');
+        $base_url = rtrim($grav['base_url'] . $grav['pages']->base(), '/') . $language_append;
 
         // if absolute and starts with a base_url move on
         if (pathinfo($markdown_url, PATHINFO_DIRNAME) == '.' && $page->url() == '/') {
@@ -538,7 +555,7 @@ class Uri
             $instances = $grav['pages']->instances();
             if (isset($instances[$page_path])) {
                 $target = $instances[$page_path];
-                $url_bits['path'] = $base_url . $target->route() . $filename;
+                $url_bits['path'] = $base_url . rtrim($target->route(), '/') . $filename;
                 return Uri::buildUrl($url_bits);
             }
 

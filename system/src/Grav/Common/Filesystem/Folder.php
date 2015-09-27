@@ -38,7 +38,7 @@ abstract class Folder
      * Recursively find the last modified time under given path by file.
      *
      * @param  string $path
-     * @param string  $extensions
+     * @param string  $extensions   which files to search for specifically
      *
      * @return int
      */
@@ -244,7 +244,7 @@ abstract class Folder
     public static function delete($target)
     {
         if (!is_dir($target)) {
-            throw new \RuntimeException('Cannot delete non-existing folder.');
+            return;
         }
 
         $success = self::doDelete($target);

@@ -31,7 +31,6 @@ class User extends Data
     {
         $locator = self::getGrav()['locator'];
 
-        // TODO: validate directory name
         $blueprints = new Blueprints('blueprints://');
         $blueprint = $blueprints->get('user/account');
         $file_path = $locator->findResource('account://' . $username . YAML_EXT);
@@ -117,12 +116,25 @@ class User extends Data
      * @param  string  $action
      * @return bool
      */
-    public function authorise($action)
+    public function authorize($action)
     {
         if (empty($this->items)) {
             return false;
         }
 
         return $this->get("access.{$action}") === true;
+    }
+
+    /**
+     * Checks user authorization to the action.
+     * Ensures backwards compatibility
+     *
+     * @param  string $action
+     * @deprecated use authorize()
+     * @return bool
+     */
+    public function authorise($action)
+    {
+        return $this->authorize($action);
     }
 }

@@ -1,0 +1,4 @@
+# OpenShift doesn't install dependencies on composer
+# Better to not include it
+composer.json
+composer.lock

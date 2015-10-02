@@ -1,14 +1,22 @@
-# Grav test
+# grav-test
 
-I hope you can use this repo to use [Grav](https://github.com/getgrav/grav) with cloud service like Heroku.
+It's just my experiment with [Grav](http://getgrav.org/). You can use this repo to deploy Grav to cloud service. [Learn more about Grav](http://learn.getgrav.org/).
 
-## Currently available on:
+## Demo:
 
-### Heroku
-I've set up Heroku to use this repo, so just fork this repo and some setup on Heroku will make everything works. Take a look at https://mowl.herokuapp.com
+- [On CloudControl](https://mowl.cloudcontrolapp.com/)
+- [On Heroku](https://mowl.herokuapp.com/)
+- [On OpenShift](http://mowl-akhyarrh.rhcloud.com/)
 
-### More will be added soon
-I don't have much time for edit, test, error, check, and repeat it on other cloud provider out there. If you've try Grav on another cloud service, PR are always welcome.
+## Roadmap
+- [ ] Add deploy steps to deploy to CloudControl, Heroku, OpenShift
+- [ ] Any idea what next ?
+- [ ] ?
 
 ## License
-MIT. Have fun :smile:
+
+MIT License
+
+Copyright (c) 2015 Muhammad Akhyar Rahman Hidayat. [LICENSE](LICENSE)
+
+Copyright (c) 2014 Grav. [LICENSE](https://github.com/getgrav/grav/blob/develop/LICENSE)

@@ -1,8 +1,74 @@
+# v1.7.5
+## 09/16/2015
+
+1. [](#improved)
+    * Use new form plugin templates
+
+# v1.7.3
+## 09/11/2015
+
+1. [](#new)
+    * Added SCSS configurable notes colors
+1. [](#improved)
+    * Various typos
+
+# v1.7.3
+## 08/31/2015
+
+1. [](#new)
+    * Added header image control and blueprints to admin plugin
+1. [](#improved)
+    * Use new template field for modular pages
+
+# v1.7.2
+## 08/24/2015
+
+1. [](#new)
+    * Added support for `login-status` partial in menu
+
+# v1.7.1
+## 08/11/2015
+
+1. [](#improved)
+    * Use new toggle for item blueprint
+
+# v1.7.0
+## 08/06/2015
+
+1. [](#new)
+    * Blueprints that work with new admin plugin!
+1. [](#bugfix)
+    * Favicon with full image URL   
+
+# v1.6.1
+## 07/24/2015
+
+1. [](#bugfix)
+    * Fixed sidebar links when site at root
+
+# v1.6.0
+## 07/21/2015
+
+1. [](#new)
+    * Added support for `langswitcher` plugin
+1. [](#improved)
+    * Made sidebar links more robust
+
+# v1.5.0
+## 07/14/2015
+
+1. [](#new)
+    * Added canonical URL support
+1. [](#improved)
+    * More improvements for blueprints
+1. [](#bugfix)
+    * Fixes for multi-language support
+
 # v1.4.0
 ## 05/09/2015
 
 1. [](#improved)
-    * Improved bluerpints
+    * Improved blueprints
 1. [](#bugfix)
     * Fix for when page.summary is equal to page.content
 

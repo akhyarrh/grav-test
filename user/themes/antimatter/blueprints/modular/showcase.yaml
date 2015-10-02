@@ -1,4 +1,4 @@
-title: Features
+title: Showcase
 @extends: default
 
 form:
@@ -12,29 +12,34 @@ form:
                 column1:
                   fields:
                     name:
-                      default: modular/features
+                      default: modular/showcase
                       @data-options: '\Grav\Common\Page\Pages::modularTypes'
             overrides:
               fields:
                 header.template:
-                  default: modular/features
+                  default: modular/showcase
                   @data-options: '\Grav\Common\Page\Pages::modularTypes'
-        features:
+        buttons:
           type: tab
-          title: Features
+          title: Buttons
           fields:
-            header.features:
-              name: features
+            header.buttons:
+              name: buttons
               type: list
-              label: Features
-
+              label: Buttons
               fields:
-                .icon:
-                  type: text
-                  label: Icon
-                .header:
-                  type: text
-                  label: Header
                 .text:
                   type: text
                   label: Text
+                .url:
+                  type: text
+                  label: URL
+                .primary:
+                  type: toggle
+                  label: Primary
+                  highlight: 1
+                  options:
+                      1: Yes
+                      0: No
+                  validate:
+                      type: bool

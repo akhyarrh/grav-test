@@ -1,0 +1,14 @@
+# Grav specific
+.sass-cache
+/cache/*
+CHANGELOG.md
+htaccess.txt
+LICENSE
+README.md
+
+# grav-test specific
+.git
+.gitignore
+deploy
+exclude
+public

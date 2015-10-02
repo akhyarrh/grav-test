@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+rsync -av --exclude-from=exclude/global --exclude-from=exclude/on-heroku . public/heroku

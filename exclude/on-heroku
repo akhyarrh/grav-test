@@ -1,0 +1,4 @@
+# Heroku specific
+# Dependencies are installed by Heroku on 'vendor' folder
+# So it's better to not include it
+vendor

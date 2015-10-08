@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
 
+if [ ! -d "public/heroku" ]; then
+  mkdir -pv public/heroku
+fi
+
 rsync -av --exclude-from=exclude/global --exclude-from=exclude/on-heroku . public/heroku

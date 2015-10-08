@@ -22,9 +22,7 @@
         "donatj/phpuseragentparser": "~0.3",
         "pimple/pimple": "~3.0",
         "rockettheme/toolbox": "1.1.*",
-        "maximebf/debugbar": "~1.10",
-        "ext-gd": "*",
-        "ext-mbstring": "*"
+        "maximebf/debugbar": "~1.10"
     },
     "autoload": {
         "psr-4": {

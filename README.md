@@ -4,7 +4,6 @@ It's just my experiment with [Grav](http://getgrav.org/). You can use this repo 
 
 ## Demo:
 
-- [On CloudControl](https://mowl.cloudcontrolapp.com/)
 - [On Heroku](https://mowl.herokuapp.com/)
 - [On OpenShift](http://mowl-akhyarrh.rhcloud.com/)
 

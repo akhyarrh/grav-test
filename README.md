@@ -7,11 +7,6 @@ It's just my experiment with [Grav](http://getgrav.org/). You can use this repo 
 - [On Heroku](https://mowl.herokuapp.com/)
 - [On OpenShift](http://mowl-akhyarrh.rhcloud.com/)
 
-## Roadmap
-- [ ] Add deploy steps to deploy to CloudControl, Heroku, OpenShift
-- [ ] Any idea what next ?
-- [ ] ?
-
 ## License
 
 MIT License

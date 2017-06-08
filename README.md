@@ -5,7 +5,6 @@ It's just my experiment with [Grav](http://getgrav.org/). You can use this repo 
 ## Demo:
 
 - [On Heroku](https://mowl.herokuapp.com/)
-- [On OpenShift](http://mowl-akhyarrh.rhcloud.com/)
 
 ## License
 

@@ -4,5 +4,10 @@ robots: noindex,nofollow
 template: error
 routable: false
 http_response_code: 404
+twig_first: true
+process:
+  twig: true
 ---
-Woops. Looks like this page doesn't exist.
+
+{{ 'PLUGIN_ERROR.ERROR_MESSAGE'|t }}
+

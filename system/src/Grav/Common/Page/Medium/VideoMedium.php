@@ -1,12 +1,12 @@
 <?php
-namespace Grav\Common\Page\Medium;
+/**
+ * @package    Grav.Common.Page
+ *
+ * @copyright  Copyright (C) 2014 - 2016 RocketTheme, LLC. All rights reserved.
+ * @license    MIT License; see LICENSE file for details.
+ */
 
-use Grav\Common\Config\Config;
-use Grav\Common\File\CompiledYamlFile;
-use Grav\Common\Grav;
-use Grav\Common\GravTrait;
-use Grav\Common\Data\Blueprint;
-use Grav\Common\Data\Data;
+namespace Grav\Common\Page\Medium;
 
 class VideoMedium extends Medium
 {

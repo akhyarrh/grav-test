@@ -1,25 +1,33 @@
 <?php
+/**
+ * @package    Grav.Console
+ *
+ * @copyright  Copyright (C) 2014 - 2016 RocketTheme, LLC. All rights reserved.
+ * @license    MIT License; see LICENSE file for details.
+ */
+
 namespace Grav\Console\Cli;
 
 use Grav\Common\Filesystem\Folder;
-use Grav\Console\ConsoleTrait;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 
-/**
- * Class CleanCommand
- * @package Grav\Console\Cli
- */
 class CleanCommand extends Command
 {
-    use ConsoleTrait;
+    /* @var InputInterface $output */
+    protected $input;
+
+    /* @var OutputInterface $output */
+    protected $output;
 
     /**
      * @var array
      */
     protected $paths_to_remove = [
+        'codeception.yml',
+        'tests/',
         'user/plugins/email/vendor/swiftmailer/swiftmailer/.travis.yml',
         'user/plugins/email/vendor/swiftmailer/swiftmailer/build.xml',
         'user/plugins/email/vendor/swiftmailer/swiftmailer/composer.json',
@@ -86,10 +94,15 @@ class CleanCommand extends Command
         'vendor/ircmaxell/password-compat/version-test.php',
         'vendor/ircmaxell/password-compat/.travis.yml',
         'vendor/ircmaxell/password-compat/test',
+        'vendor/league/climate/composer.json',
+        'vendor/matthiasmullie/minify/bin',
+        'vendor/matthiasmullie/minify/composer.json',
+        'vendor/matthiasmullie/minify/CONTRIBUTING.md',
+        'vendor/matthiasmullie/path-converter/composer.json',
         'vendor/maximebf/debugbar/bower.json',
         'vendor/maximebf/debugbar/composer.json',
         'vendor/maximebf/debugbar/.bowerrc',
-        'vendor/maximebf/debugbar/src/Debugbar/Resources/vendor',
+        'vendor/maximebf/debugbar/src/DebugBar/Resources/vendor',
         'vendor/maximebf/debugbar/demo',
         'vendor/maximebf/debugbar/docs',
         'vendor/maximebf/debugbar/tests',
@@ -98,21 +111,6 @@ class CleanCommand extends Command
         'vendor/monolog/monolog/doc',
         'vendor/monolog/monolog/phpunit.xml.dist',
         'vendor/monolog/monolog/tests',
-        'vendor/mrclay/minify/.editorconfig',
-        'vendor/mrclay/minify/.git',
-        'vendor/mrclay/minify/.gitignore',
-        'vendor/mrclay/minify/composer.json',
-        'vendor/mrclay/minify/min_extras',
-        'vendor/mrclay/minify/min_unit_tests',
-        'vendor/mrclay/minify/min/.htaccess',
-        'vendor/mrclay/minify/min/builder',
-        'vendor/mrclay/minify/min/config-test.php',
-        'vendor/mrclay/minify/min/config.php',
-        'vendor/mrclay/minify/min/groupsConfig.php',
-        'vendor/mrclay/minify/min/index.php',
-        'vendor/mrclay/minify/min/quick-test.css',
-        'vendor/mrclay/minify/min/quick-test.js',
-        'vendor/mrclay/minify/min/utils.php',
         'vendor/pimple/pimple/.gitignore',
         'vendor/pimple/pimple/.travis.yml',
         'vendor/pimple/pimple/composer.json',
@@ -127,28 +125,35 @@ class CleanCommand extends Command
         'vendor/rockettheme/toolbox/.travis.yml',
         'vendor/rockettheme/toolbox/composer.json',
         'vendor/rockettheme/toolbox/phpunit.xml',
-        'vendor/symfony/console/Symfony/Component/Console/composer.json',
-        'vendor/symfony/console/Symfony/Component/Console/phpunit.xml.dist',
-        'vendor/symfony/console/Symfony/Component/Console/.gitignore',
-        'vendor/symfony/console/Symfony/Component/Console/.git',
-        'vendor/symfony/console/Symfony/Component/Console/Tests',
-        'vendor/symfony/event-dispatcher/Symfony/Component/EventDispatcher/.git',
-        'vendor/symfony/event-dispatcher/Symfony/Component/EventDispatcher/.gitignore',
-        'vendor/symfony/event-dispatcher/Symfony/Component/EventDispatcher/composer.json',
-        'vendor/symfony/event-dispatcher/Symfony/Component/EventDispatcher/phpunit.xml.dist',
-        'vendor/symfony/event-dispatcher/Symfony/Component/EventDispatcher/Tests',
-        'vendor/symfony/yaml/Symfony/Component/Yaml/composer.json',
-        'vendor/symfony/yaml/Symfony/Component/Yaml/phpunit.xml.dist',
-        'vendor/symfony/yaml/Symfony/Component/Yaml/.gitignore',
-        'vendor/symfony/yaml/Symfony/Component/Yaml/.git',
-        'vendor/symfony/yaml/Symfony/Component/Yaml/Tests',
-        'vendor/tracy/tracy/.gitattributes',
-        'vendor/tracy/tracy/.travis.yml',
-        'vendor/tracy/tracy/composer.json',
-        'vendor/tracy/tracy/.gitignore',
-        'vendor/tracy/tracy/.git',
-        'vendor/tracy/tracy/examples',
-        'vendor/tracy/tracy/tests',
+        'vendor/seld/cli-prompt/composer.json',
+        'vendor/symfony/console/composer.json',
+        'vendor/symfony/console/phpunit.xml.dist',
+        'vendor/symfony/console/.gitignore',
+        'vendor/symfony/console/.git',
+        'vendor/symfony/console/Tester',
+        'vendor/symfony/console/Tests',
+        'vendor/symfony/event-dispatcher/.git',
+        'vendor/symfony/event-dispatcher/.gitignore',
+        'vendor/symfony/event-dispatcher/composer.json',
+        'vendor/symfony/event-dispatcher/phpunit.xml.dist',
+        'vendor/symfony/event-dispatcher/Tests',
+        'vendor/symfony/polyfill-iconv/.git',
+        'vendor/symfony/polyfill-iconv/.gitignore',
+        'vendor/symfony/polyfill-iconv/composer.json',
+        'vendor/symfony/polyfill-mbstring/.git',
+        'vendor/symfony/polyfill-mbstring/.gitignore',
+        'vendor/symfony/polyfill-mbstring/composer.json',
+        'vendor/symfony/var-dumper/.git',
+        'vendor/symfony/var-dumper/.gitignore',
+        'vendor/symfony/var-dumper/composer.json',
+        'vendor/symfony/var-dumper/phpunit.xml.dist',
+        'vendor/symfony/var-dumper/Test',
+        'vendor/symfony/var-dumper/Tests',
+        'vendor/symfony/yaml/composer.json',
+        'vendor/symfony/yaml/phpunit.xml.dist',
+        'vendor/symfony/yaml/.gitignore',
+        'vendor/symfony/yaml/.git',
+        'vendor/symfony/yaml/Tests',
         'vendor/twig/twig/.editorconfig',
         'vendor/twig/twig/.travis.yml',
         'vendor/twig/twig/.gitignore',
@@ -180,6 +185,7 @@ class CleanCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->setupConsole($input, $output);
+
         $this->cleanPaths();
     }
 
@@ -187,12 +193,9 @@ class CleanCommand extends Command
     {
         $this->output->writeln('');
         $this->output->writeln('<red>DELETING</red>');
-
         $anything = false;
-
         foreach ($this->paths_to_remove as $path) {
             $path = ROOT_DIR . $path;
-
             if (is_dir($path) && @Folder::delete($path)) {
                 $anything = true;
                 $this->output->writeln('<red>dir:  </red>' . $path);
@@ -201,12 +204,30 @@ class CleanCommand extends Command
                 $this->output->writeln('<red>file: </red>' . $path);
             }
         }
-
         if (!$anything) {
             $this->output->writeln('');
             $this->output->writeln('<green>Nothing to clean...</green>');
         }
+    }
 
+    /**
+     * Set colors style definition for the formatter.
+     *
+     * @param InputInterface  $input
+     * @param OutputInterface $output
+     */
+    public function setupConsole(InputInterface $input, OutputInterface $output)
+    {
+        $this->input = $input;
+        $this->output = $output;
+
+        $this->output->getFormatter()->setStyle('normal', new OutputFormatterStyle('white'));
+        $this->output->getFormatter()->setStyle('yellow', new OutputFormatterStyle('yellow', null, ['bold']));
+        $this->output->getFormatter()->setStyle('red', new OutputFormatterStyle('red', null, ['bold']));
+        $this->output->getFormatter()->setStyle('cyan', new OutputFormatterStyle('cyan', null, ['bold']));
+        $this->output->getFormatter()->setStyle('green', new OutputFormatterStyle('green', null, ['bold']));
+        $this->output->getFormatter()->setStyle('magenta', new OutputFormatterStyle('magenta', null, ['bold']));
+        $this->output->getFormatter()->setStyle('white', new OutputFormatterStyle('white', null, ['bold']));
     }
 
 }

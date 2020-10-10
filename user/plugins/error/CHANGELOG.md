@@ -1,3 +1,31 @@
+# v1.7.1
+## 10/08/2020
+
+1. [](#bugfix)
+    * Fixed error page being cached, fixes issue with non-existing resources which later become available
+
+# v1.7.0
+## 07/01/2020
+
+1. [](#new)
+    * Require Grav v1.6
+1. [](#bugfix)
+    * Added translated title programmatically [#40](https://github.com/getgrav/grav-plugin-error/pull/40)
+    
+# v1.6.2
+## 05/09/2019
+
+1. [](#new)
+    * Fixed a few issues found by phpstan
+    * Added `ru` and `uk` translations [#36](https://github.com/getgrav/grav-plugin-error/pull/36)
+
+# v1.6.1
+## 03/09/2018
+
+1. [](#improved)
+    * Added Polish + Catalan translation
+    * Updated `README.md` to reference custom error pages
+
 # v1.6.0
 ## 10/19/2016
 

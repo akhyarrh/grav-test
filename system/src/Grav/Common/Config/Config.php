@@ -1,8 +1,9 @@
 <?php
+
 /**
- * @package    Grav.Common.Config
+ * @package    Grav\Common\Config
  *
- * @copyright  Copyright (C) 2014 - 2016 RocketTheme, LLC. All rights reserved.
+ * @copyright  Copyright (C) 2015 - 2019 Trilby Media, LLC. All rights reserved.
  * @license    MIT License; see LICENSE file for details.
  */
 
@@ -12,15 +13,28 @@ use Grav\Common\Debugger;
 use Grav\Common\Grav;
 use Grav\Common\Data\Data;
 use Grav\Common\Service\ConfigServiceProvider;
+use Grav\Common\Utils;
 
 class Config extends Data
 {
+    public $environment;
+
+    /** @var string */
+    protected $key;
+    /** @var string */
     protected $checksum;
+    /** @var int */
+    protected $timestamp = 0;
+    /** @var bool */
     protected $modified = false;
 
     public function key()
     {
-        return $this->checksum();
+        if (null === $this->key) {
+            $this->key = md5($this->checksum . $this->timestamp);
+        }
+
+        return $this->key;
     }
 
     public function checksum($checksum = null)
@@ -39,6 +53,15 @@ class Config extends Data
         }
 
         return $this->modified;
+    }
+
+    public function timestamp($timestamp = null)
+    {
+        if ($timestamp !== null) {
+            $this->timestamp = $timestamp;
+        }
+
+        return $this->timestamp;
     }
 
     public function reload()
@@ -78,21 +101,26 @@ class Config extends Data
     {
         $setup = Grav::instance()['setup']->toArray();
         foreach ($setup as $key => $value) {
-            if ($key === 'streams' || !is_array($value)) {
+            if ($key === 'streams' || !\is_array($value)) {
                 // Optimized as streams and simple values are fully defined in setup.
                 $this->items[$key] = $value;
             } else {
                 $this->joinDefaults($key, $value);
             }
         }
+
+        // Legacy value - Override the media.upload_limit based on PHP values
+        $this->items['system']['media']['upload_limit'] = Utils::getUploadLimit();
     }
 
     /**
      * @return mixed
-     * @deprecated
+     * @deprecated 1.5 Use Grav::instance()['languages'] instead.
      */
     public function getLanguages()
     {
+        user_error(__CLASS__ . '::' . __FUNCTION__ . '() is deprecated since Grav 1.5, use Grav::instance()[\'languages\'] instead', E_USER_DEPRECATED);
+
         return Grav::instance()['languages'];
     }
 }

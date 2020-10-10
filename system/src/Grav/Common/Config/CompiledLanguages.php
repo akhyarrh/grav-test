@@ -1,8 +1,9 @@
 <?php
+
 /**
- * @package    Grav.Common.Config
+ * @package    Grav\Common\Config
  *
- * @copyright  Copyright (C) 2014 - 2016 RocketTheme, LLC. All rights reserved.
+ * @copyright  Copyright (C) 2015 - 2019 Trilby Media, LLC. All rights reserved.
  * @license    MIT License; see LICENSE file for details.
  */
 
@@ -12,15 +13,12 @@ use Grav\Common\File\CompiledYamlFile;
 
 class CompiledLanguages extends CompiledBase
 {
-    /**
-     * @var int Version number for the compiled file.
-     */
-    public $version = 1;
+    public function __construct($cacheFolder, array $files, $path)
+    {
+        parent::__construct($cacheFolder, $files, $path);
 
-    /**
-     * @var Languages  Configuration object.
-     */
-    protected $object;
+        $this->version = 1;
+    }
 
     /**
      * Create configuration object.
@@ -38,6 +36,7 @@ class CompiledLanguages extends CompiledBase
     protected function finalizeObject()
     {
         $this->object->checksum($this->checksum());
+        $this->object->timestamp($this->timestamp());
     }
 
 
@@ -59,9 +58,9 @@ class CompiledLanguages extends CompiledBase
     {
         $file = CompiledYamlFile::instance($filename);
         if (preg_match('|languages\.yaml$|', $filename)) {
-            $this->object->mergeRecursive((array)$file->content());
+            $this->object->mergeRecursive((array) $file->content());
         } else {
-            $this->object->join($name, $file->content(), '/');
+            $this->object->mergeRecursive([$name => $file->content()]);
         }
         $file->free();
     }

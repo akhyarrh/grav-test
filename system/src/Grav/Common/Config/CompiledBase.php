@@ -1,8 +1,9 @@
 <?php
+
 /**
- * @package    Grav.Common.Config
+ * @package    Grav\Common\Config
  *
- * @copyright  Copyright (C) 2014 - 2016 RocketTheme, LLC. All rights reserved.
+ * @copyright  Copyright (C) 2015 - 2019 Trilby Media, LLC. All rights reserved.
  * @license    MIT License; see LICENSE file for details.
  */
 
@@ -26,6 +27,11 @@ abstract class CompiledBase
      * @var string|bool  Configuration checksum.
      */
     public $checksum;
+
+    /**
+     * @var string  Timestamp of compiled configuration
+     */
+    public $timestamp;
 
     /**
      * @var string Cache folder to be used.
@@ -59,9 +65,10 @@ abstract class CompiledBase
             throw new \BadMethodCallException('Cache folder not defined.');
         }
 
+        $this->path = $path ? rtrim($path, '\\/') . '/' : '';
         $this->cacheFolder = $cacheFolder;
         $this->files = $files;
-        $this->path = $path ? rtrim($path, '\\/') . '/' : '';
+        $this->timestamp = 0;
     }
 
     /**
@@ -83,6 +90,16 @@ abstract class CompiledBase
      * Function gets called when cached configuration is saved.
      */
     public function modified() {}
+
+    /**
+     * Get timestamp of compiled configuration
+     *
+     * @return int Timestamp of compiled configuration
+     */
+    public function timestamp()
+    {
+        return $this->timestamp ?: time();
+    }
 
     /**
      * Load the configuration.
@@ -112,7 +129,7 @@ abstract class CompiledBase
      */
     public function checksum()
     {
-        if (!isset($this->checksum)) {
+        if (null === $this->checksum) {
             $this->checksum = md5(json_encode($this->files) . $this->version);
         }
 
@@ -181,11 +198,9 @@ abstract class CompiledBase
 
         $cache = include $filename;
         if (
-            !is_array($cache)
-            || !isset($cache['checksum'])
-            || !isset($cache['data'])
-            || !isset($cache['@class'])
-            || $cache['@class'] != get_class($this)
+            !\is_array($cache)
+            || !isset($cache['checksum'], $cache['data'], $cache['@class'])
+            || $cache['@class'] !== \get_class($this)
         ) {
             return false;
         }
@@ -196,6 +211,7 @@ abstract class CompiledBase
         }
 
         $this->createObject($cache['data']);
+        $this->timestamp = $cache['timestamp'] ?? 0;
 
         $this->finalizeObject();
 
@@ -226,7 +242,7 @@ abstract class CompiledBase
         }
 
         $cache = [
-            '@class' => get_class($this),
+            '@class' => \get_class($this),
             'timestamp' => time(),
             'checksum' => $this->checksum(),
             'files' => $this->files,

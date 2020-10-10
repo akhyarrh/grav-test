@@ -1,8 +1,9 @@
 <?php
+
 /**
- * @package    Grav.Common.GPM
+ * @package    Grav\Common\GPM
  *
- * @copyright  Copyright (C) 2014 - 2016 RocketTheme, LLC. All rights reserved.
+ * @copyright  Copyright (C) 2015 - 2019 Trilby Media, LLC. All rights reserved.
  * @license    MIT License; see LICENSE file for details.
  */
 
@@ -35,7 +36,6 @@ class Response
     private static $defaults = [
 
         'curl'  => [
-            CURLOPT_REFERER        => 'Grav GPM',
             CURLOPT_USERAGENT      => 'Grav GPM',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
@@ -77,7 +77,7 @@ class Response
      */
     public static function setMethod($method = 'auto')
     {
-        if (!in_array($method, ['auto', 'curl', 'fopen'])) {
+        if (!\in_array($method, ['auto', 'curl', 'fopen'], true)) {
             $method = 'auto';
         }
 
@@ -103,7 +103,7 @@ class Response
 
         // check if this function is available, if so use it to stop any timeouts
         try {
-            if (!Utils::isFunctionDisabled('set_time_limit') && !ini_get('safe_mode') && function_exists('set_time_limit')) {
+            if (function_exists('set_time_limit') && !Utils::isFunctionDisabled('set_time_limit')) {
                 set_time_limit(0);
             }
         } catch (\Exception $e) {
@@ -111,6 +111,16 @@ class Response
 
         $config = Grav::instance()['config'];
         $overrides = [];
+
+        // Override CA Bundle
+        $caPathOrFile = \Composer\CaBundle\CaBundle::getSystemCaRootBundlePath();
+        if (is_dir($caPathOrFile) || (is_link($caPathOrFile) && is_dir(readlink($caPathOrFile)))) {
+            $overrides['curl'][CURLOPT_CAPATH] = $caPathOrFile;
+            $overrides['fopen']['ssl']['capath'] = $caPathOrFile;
+        } else {
+            $overrides['curl'][CURLOPT_CAINFO] = $caPathOrFile;
+            $overrides['fopen']['ssl']['cafile'] = $caPathOrFile;
+        }
 
         // SSL Verify Peer and Proxy Setting
         $settings = [
@@ -155,7 +165,7 @@ class Response
                 $overrides['curl'][CURLOPT_PROXYPORT] = $proxy['port'];
             }
 
-            if (isset($proxy['user']) && isset($proxy['pass'])) {
+            if (isset($proxy['user'], $proxy['pass'])) {
                 $fopen_auth = $auth = base64_encode($proxy['user'] . ':' . $proxy['pass']);
                 $overrides['curl'][CURLOPT_PROXYUSERPWD] = $proxy['user'] . ':' . $proxy['pass'];
                 $overrides['fopen']['header'] = "Proxy-Authorization: Basic $fopen_auth";
@@ -172,7 +182,7 @@ class Response
     /**
      * Checks if cURL is available
      *
-     * @return boolean
+     * @return bool
      */
     public static function isCurlAvailable()
     {
@@ -182,7 +192,7 @@ class Response
     /**
      * Checks if the remote fopen request is enabled in PHP
      *
-     * @return boolean
+     * @return bool
      */
     public static function isFopenAvailable()
     {
@@ -192,7 +202,7 @@ class Response
     /**
      * Is this a remote file or not
      *
-     * @param $file
+     * @param string $file
      * @return bool
      */
     public static function isRemote($file)
@@ -209,7 +219,7 @@ class Response
         static $filesize = null;
 
         $args           = func_get_args();
-        $isCurlResource = is_resource($args[0]) && get_resource_type($args[0]) == 'curl';
+        $isCurlResource = is_resource($args[0]) && get_resource_type($args[0]) === 'curl';
 
         $notification_code = !$isCurlResource ? $args[0] : false;
         $bytes_transferred = $isCurlResource ? $args[2] : $args[4];
@@ -231,7 +241,7 @@ class Response
                 ];
 
                 if (self::$callback !== null) {
-                    call_user_func_array(self::$callback, [$progress]);
+                    call_user_func(self::$callback, $progress);
                 }
             }
         }
@@ -262,18 +272,19 @@ class Response
      */
     private static function getFopen()
     {
-        if (count($args = func_get_args()) == 1) {
+        if (\count($args = func_get_args()) === 1) {
             $args = $args[0];
         }
 
         $uri      = $args[0];
-        $options  = $args[1];
-        $callback = $args[2];
+        $options  = $args[1] ?? [];
+        $callback = $args[2] ?? null;
 
         if ($callback) {
             $options['fopen']['notification'] = ['self', 'progress'];
         }
 
+        $options['fopen']['header'] = 'Referer: ' . Grav::instance()['uri']->rootUrl(true);
         if (isset($options['fopen']['ssl'])) {
             $ssl = $options['fopen']['ssl'];
             unset($options['fopen']['ssl']);
@@ -291,17 +302,18 @@ class Response
 
         if ($content === false) {
             $code = null;
+            // Function file_get_contents() creates local variable $http_response_header, check it
             if (isset($http_response_header)) {
-                $code = explode(' ', $http_response_header[0])[1];
+                $code = explode(' ', $http_response_header[0] ?? '')[1] ?? null;
             }
 
             switch ($code) {
                 case '404':
-                    throw new \RuntimeException("Page not found");
+                    throw new \RuntimeException('Page not found');
                 case '401':
-                    throw new \RuntimeException("Invalid LICENSE");
+                    throw new \RuntimeException('Invalid LICENSE');
                 default:
-                    throw new \RuntimeException("Error while trying to download (code: $code): $uri \n");
+                    throw new \RuntimeException("Error while trying to download (code: {$code}): {$uri}\n");
             }
         }
 
@@ -319,8 +331,8 @@ class Response
         $args = count($args) > 1 ? $args : array_shift($args);
 
         $uri      = $args[0];
-        $options  = $args[1];
-        $callback = $args[2];
+        $options  = $args[1] ?? [];
+        $callback = $args[2] ?? null;
 
         $ch = curl_init($uri);
 
@@ -333,9 +345,9 @@ class Response
 
             switch ($code) {
                 case '404':
-                    throw new \RuntimeException("Page not found");
+                    throw new \RuntimeException('Page not found');
                 case '401':
-                    throw new \RuntimeException("Invalid LICENSE");
+                    throw new \RuntimeException('Invalid LICENSE');
                 default:
                     throw new \RuntimeException("Error while trying to download (code: $code): $uri \nMessage: $error_message");
             }
@@ -347,14 +359,16 @@ class Response
     }
 
     /**
-     * @param $ch
-     * @param $options
-     * @param $callback
+     * @param resource $ch
+     * @param array $options
+     * @param bool $callback
      *
      * @return bool|mixed
      */
     private static function curlExecFollow($ch, $options, $callback)
     {
+        curl_setopt_array($ch, [ CURLOPT_REFERER => Grav::instance()['uri']->rootUrl(true) ]);
+
         if ($callback) {
             curl_setopt_array(
                 $ch,
@@ -371,7 +385,7 @@ class Response
             return curl_exec($ch);
         }
 
-        $max_redirects = isset($options['curl'][CURLOPT_MAXREDIRS]) ? $options['curl'][CURLOPT_MAXREDIRS] : 5;
+        $max_redirects = $options['curl'][CURLOPT_MAXREDIRS] ?? 5;
         $options['curl'][CURLOPT_FOLLOWLOCATION] = false;
 
         // open_basedir set but no redirects to follow, we can disable followlocation and proceed normally
@@ -395,9 +409,9 @@ class Response
             if (curl_errno($rch)) {
                 $code = 0;
             } else {
-                $code = curl_getinfo($rch, CURLINFO_HTTP_CODE);
-                if ($code == 301 || $code == 302 || $code == 303) {
-                    preg_match('/Location:(.*?)\n/', $header, $matches);
+                $code = (int)curl_getinfo($rch, CURLINFO_HTTP_CODE);
+                if ($code === 301 || $code === 302 || $code === 303) {
+                    preg_match('/(?:^|\n)Location:(.*?)\n/i', $header, $matches);
                     $uri = trim(array_pop($matches));
                 } else {
                     $code = 0;
